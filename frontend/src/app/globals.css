@@ -1,0 +1,69 @@
+@import 'tailwindcss';
+
+/* Токены дизайна из макета Figma «Сладкий мост» */
+@theme {
+  --color-ink: #43281f;
+  --color-muted: #846357;
+  --color-accent: #ad3a4c;
+  --color-accent-dark: #93303f;
+  --color-line: rgb(132 99 87 / 0.15);
+  --color-line-strong: rgb(132 99 87 / 0.3);
+  --color-soft: #f8f6f5;
+  --color-pink: #fbf6f6;
+  --color-ok: #3f7a4f;
+  --color-warn: #a3651a;
+  --color-snow: #4b7a9a;
+
+  --font-sans: var(--font-inter), system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-head: var(--font-manrope), var(--font-inter), system-ui, sans-serif;
+  --font-brand: var(--font-mont), var(--font-manrope), system-ui, sans-serif;
+
+  --radius-card: 12px;
+  --shadow-soft: 0 8px 30px rgb(67 40 31 / 0.08);
+}
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body { @apply bg-white text-ink font-sans text-[15px] leading-snug antialiased; }
+  h1, h2, h3, h4 { @apply font-head; }
+  :focus-visible { @apply outline-2 outline-offset-2 outline-accent; }
+}
+
+@layer components {
+  .container-x { @apply mx-auto w-full max-w-[1248px] px-4 sm:px-6; }
+  .h1 { @apply font-head text-[30px] font-bold leading-[1.1] tracking-tight sm:text-[40px] lg:text-[48px]; }
+  .h2 { @apply font-head text-2xl font-semibold leading-tight lg:text-[32px]; }
+  .h3 { @apply font-head text-[22px] font-semibold leading-tight; }
+  .overline { @apply text-xs font-medium uppercase tracking-wide text-accent; }
+
+  .btn { @apply inline-flex min-h-12 items-center justify-center gap-2.5 rounded-lg border border-line bg-white px-5 py-3 text-sm font-semibold whitespace-nowrap transition hover:border-line-strong active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50; }
+  .btn-primary { @apply border-accent bg-accent text-white hover:border-accent-dark hover:bg-accent-dark; }
+  .btn-ghost { @apply border-transparent bg-transparent; }
+  .btn-sm { @apply min-h-9 px-3.5 py-1.5 text-[13px]; }
+
+  .card { @apply rounded-card border border-line bg-white p-5 sm:p-6; }
+  .card-soft { @apply rounded-card bg-soft p-5 sm:p-6; }
+  .card-pink { @apply rounded-card bg-pink p-5 sm:p-6; }
+
+  .field { @apply flex flex-col gap-2; }
+  .label { @apply text-[13px] font-medium; }
+  .input { @apply min-h-12 w-full rounded-lg border border-line bg-white px-3.5 py-3 text-sm outline-none focus:border-accent focus:ring-3 focus:ring-accent/10; }
+  .input-invalid { @apply border-accent; }
+  .select { @apply min-h-12 w-full rounded-lg border border-line bg-white px-3.5 py-3 text-sm outline-none focus:border-accent focus:ring-3 focus:ring-accent/10 appearance-none bg-[url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='14'%20height='14'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='%2343281f'%20stroke-width='2'%20stroke-linecap='round'%3E%3Cpath%20d='m6%209%206%206%206-6'/%3E%3C/svg%3E")] bg-[position:right_14px_center] bg-no-repeat pr-10; }
+  .hint { @apply text-xs text-muted; }
+  .check { @apply flex cursor-pointer items-start gap-2.5 text-sm; }
+  .check input { @apply mt-0.5 size-[18px] shrink-0 accent-accent; }
+
+  .chip { @apply rounded-full border border-line bg-white px-3 py-1.5 text-[13px] text-muted; }
+  .chip-on { @apply border-accent/20 bg-accent/5 text-accent; }
+  .tag { @apply inline-flex items-center gap-1.5 rounded-full bg-accent/5 px-2.5 py-1 text-xs font-medium whitespace-nowrap text-accent; }
+  .tag-muted { @apply bg-soft text-muted; }
+  .tag-ok { @apply bg-ok/10 text-ok; }
+  .tag-warn { @apply bg-warn/10 text-warn; }
+
+  .kv { @apply flex justify-between gap-4 py-1.5 text-sm; }
+  .kv > :last-child { @apply text-right font-semibold; }
+  .divider { @apply my-4 border-t border-line; }
+  .formula { @apply my-2 font-head text-lg font-semibold text-accent sm:text-[22px]; }
+  .link { @apply text-[13px] text-muted underline underline-offset-3 hover:text-accent; }
+}

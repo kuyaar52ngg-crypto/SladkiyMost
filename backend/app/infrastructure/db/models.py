@@ -1,0 +1,124 @@
+"""ORM-модели SQLAlchemy (PostgreSQL). Отображаются в доменные сущности в repositories.py."""
+from __future__ import annotations
+
+from datetime import date, datetime
+
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Identity,
+    Integer,
+    String,
+    Text,
+    func,
+)
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class ProductRow(Base):
+    __tablename__ = "products"
+
+    id: Mapped[str] = mapped_column(String(16), primary_key=True)
+    region: Mapped[str] = mapped_column(String(3), index=True)
+    manufacturer: Mapped[str] = mapped_column(String(160))
+    name: Mapped[str] = mapped_column(String(160))
+    category: Mapped[str] = mapped_column(String(60), index=True)
+    weight_g: Mapped[int] = mapped_column(Integer)
+    price_rub: Mapped[int] = mapped_column(Integer)
+    temp_sensitive: Mapped[bool] = mapped_column(Boolean, default=False)
+    shelf_life_days: Mapped[int] = mapped_column(Integer)
+    photo: Mapped[str] = mapped_column(String(200))
+    description: Mapped[str] = mapped_column(Text, default="")
+    composition: Mapped[str] = mapped_column(Text, default="")
+    tag: Mapped[str] = mapped_column(String(40), default="")
+    active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+
+
+class WaveRow(Base):
+    __tablename__ = "waves"
+
+    id: Mapped[str] = mapped_column(String(24), primary_key=True)
+    direction: Mapped[str] = mapped_column(String(7), index=True)
+    departure: Mapped[date] = mapped_column(Date, index=True)
+    cutoff: Mapped[date] = mapped_column(Date)
+    arrival_from: Mapped[date] = mapped_column(Date)
+    arrival_to: Mapped[date] = mapped_column(Date)
+    off_season: Mapped[bool] = mapped_column(Boolean, default=False)
+    status: Mapped[str] = mapped_column(String(12), index=True)
+    base_load_kg: Mapped[float] = mapped_column(Float, default=0)
+    final_load_kg: Mapped[float | None] = mapped_column(Float)
+    final_rate: Mapped[float | None] = mapped_column(Float)
+
+
+class OrderRow(Base):
+    __tablename__ = "orders"
+
+    number: Mapped[int] = mapped_column(Integer, Identity(start=1025), primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    customer_name: Mapped[str] = mapped_column(String(120))
+    customer_phone: Mapped[str] = mapped_column(String(40))
+    customer_phone_digits: Mapped[str] = mapped_column(String(10), index=True)
+    recipient_name: Mapped[str] = mapped_column(String(120))
+    recipient_phone: Mapped[str] = mapped_column(String(40))
+    recipient_phone_digits: Mapped[str] = mapped_column(String(10), index=True)
+    recipient_region: Mapped[str] = mapped_column(String(3))
+    recipient_city: Mapped[str] = mapped_column(String(60))
+    receive: Mapped[str] = mapped_column(String(10))
+    address: Mapped[str] = mapped_column(String(300))
+    kind: Mapped[str] = mapped_column(String(8))
+    company: Mapped[str | None] = mapped_column(String(120))
+    gift_message: Mapped[str | None] = mapped_column(String(200))
+    gift_signature: Mapped[str | None] = mapped_column(String(60))
+    gift_card: Mapped[str | None] = mapped_column(String(20))
+    gift_surprise: Mapped[bool | None] = mapped_column(Boolean)
+    direction: Mapped[str] = mapped_column(String(7))
+    wave_id: Mapped[str] = mapped_column(ForeignKey("waves.id"), index=True)
+    goods_rub: Mapped[int] = mapped_column(Integer)
+    weight_kg: Mapped[float] = mapped_column(Float)
+    rate_rub: Mapped[float] = mapped_column(Float)
+    delivery_rub: Mapped[int] = mapped_column(Integer)
+    thermo_rub: Mapped[int] = mapped_column(Integer, default=0)
+    gift_rub: Mapped[int] = mapped_column(Integer, default=0)
+    receive_rub: Mapped[int] = mapped_column(Integer, default=0)
+    total_rub: Mapped[int] = mapped_column(Integer)
+    refund_rub: Mapped[int] = mapped_column(Integer, default=0)
+    final_delivery_rub: Mapped[int | None] = mapped_column(Integer)
+    payment_method: Mapped[str] = mapped_column(String(40))
+    status: Mapped[str] = mapped_column(String(12), index=True)
+
+    items: Mapped[list["OrderItemRow"]] = relationship(cascade="all, delete-orphan", lazy="selectin",
+                                                       order_by="OrderItemRow.id")
+    events: Mapped[list["OrderEventRow"]] = relationship(cascade="all, delete-orphan", lazy="selectin",
+                                                         order_by="OrderEventRow.id")
+
+
+class OrderItemRow(Base):
+    __tablename__ = "order_items"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    order_number: Mapped[int] = mapped_column(ForeignKey("orders.number", ondelete="CASCADE"), index=True)
+    product_id: Mapped[str] = mapped_column(ForeignKey("products.id"))
+    name: Mapped[str] = mapped_column(String(160))
+    region: Mapped[str] = mapped_column(String(3))
+    photo: Mapped[str] = mapped_column(String(200))
+    weight_g: Mapped[int] = mapped_column(Integer)
+    price_rub: Mapped[int] = mapped_column(Integer)
+    temp_sensitive: Mapped[bool] = mapped_column(Boolean)
+    qty: Mapped[int] = mapped_column(Integer)
+
+
+class OrderEventRow(Base):
+    __tablename__ = "order_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    order_number: Mapped[int] = mapped_column(ForeignKey("orders.number", ondelete="CASCADE"), index=True)
+    status: Mapped[str] = mapped_column(String(12))
+    date: Mapped[date] = mapped_column(Date)
+    note: Mapped[str] = mapped_column(String(300), default="")

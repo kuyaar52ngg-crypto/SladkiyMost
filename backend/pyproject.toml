@@ -1,0 +1,21 @@
+[project]
+name = "sladkiy-most-backend"
+version = "1.0.0"
+description = "Сладкий мост — API маркетплейса Якутия ⇄ Донбасс (FastAPI, PostgreSQL)"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115,<1",
+  "uvicorn[standard]>=0.30",
+  "sqlalchemy>=2.0.30,<3",
+  "psycopg[binary]>=3.2",
+  "pydantic>=2.7,<3",
+  "pydantic-settings>=2.3",
+  "alembic>=1.13",
+]
+
+[dependency-groups]
+dev = ["pytest>=8", "httpx>=0.27"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

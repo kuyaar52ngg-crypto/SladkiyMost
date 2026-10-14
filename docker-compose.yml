@@ -1,0 +1,33 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: sm
+      POSTGRES_PASSWORD: sm
+      POSTGRES_DB: sladkiy_most
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sm -d sladkiy_most"]
+      interval: 3s
+      retries: 20
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://sm:sm@db:5432/sladkiy_most
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-admin}
+    depends_on:
+      db: { condition: service_healthy }
+    ports: ["8000:8000"]
+
+  frontend:
+    build:
+      context: ./frontend
+      args: { BACKEND_URL: http://backend:8000 }
+    environment:
+      BACKEND_URL: http://backend:8000
+    depends_on: [backend]
+    ports: ["3000:3000"]
+
+volumes:
+  pgdata:
