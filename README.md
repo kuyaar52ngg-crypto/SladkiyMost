@@ -1,6 +1,8 @@
 # Сладкий мост — маркетплейс сладостей Якутия ⇄ Донбасс
 
-**Запуск:** `docker compose up --build` → http://localhost:3000 (подробнее — в разделе «Запуск»).
+**Демо:** https://sladkiy-most.vercel.app · API: https://sladkiy-most-api.vercel.app/docs
+
+**Запуск локально:** `docker compose up --build` → http://localhost:3000 (подробнее — в разделе «Запуск»).
 
 Веб-приложение для межрегионального заказа кондитерских изделий со **сборными отправками («волнами»)**.
 Кейс хакатона PEAK IT 2026, продвинутый уровень. Дизайн — по макетам Figma «Сладкий мост» (десктоп и мобильная версия).
@@ -73,8 +75,19 @@ Session pooler из Dashboard → Connect (с префиксом `postgresql+psy
 Тесты: `cd backend && uv run pytest` (интеграционные тесты API используют базу `sladkiy_most_test`
 или `TEST_DATABASE_URL` и пропускаются, если PostgreSQL недоступен).
 
-Демо-доступы: покупатель — телефон `+7 (914) 123-45-67`; администратор — `/admin`, пароль `admin` (`ADMIN_TOKEN`).
+Демо-доступы: покупатель — телефон `+7 (914) 123-45-67`; администратор — `/admin`, пароль `admin` (`ADMIN_TOKEN`, смените перед публичным показом).
 Чтобы показать сезонные правила, задайте бэкенду `TODAY=2026-12-10` (зима) или `TODAY=2026-07-01` (лето).
+
+## Развёртывание (Vercel + Supabase)
+
+| Часть | Где | Настройки |
+|---|---|---|
+| Сайт (Next.js) | Vercel, проект `sladkiy-most`, Root Directory `frontend` | `BACKEND_URL=https://sladkiy-most-api.vercel.app` |
+| API (FastAPI) | Vercel, проект `sladkiy-most-api`, Root Directory `backend`, регион `fra1` | `DATABASE_URL` (Supabase transaction pooler, порт 6543), `SERVERLESS=true`, `ADMIN_TOKEN` |
+| База (PostgreSQL) | Supabase, проект `SladkiyMost` (eu-central-1) | отдельная роль `sm_app` с RLS-политиками только для неё |
+
+Оба проекта Vercel подключены к ветке `master`: каждый пуш пересобирает сайт и API.
+`SERVERLESS=true` включает режим без пула соединений и без prepared statements — так требует transaction pooler Supabase.
 
 ## Функционал (раздел 5 кейса)
 
