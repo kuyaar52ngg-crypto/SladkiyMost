@@ -45,12 +45,16 @@ export default function ProductsAdmin() {
       toast(r.deleted ? 'Товар удалён' : 'По товару есть заказы — товар скрыт из каталога'); load();
     } catch (ex) { toast((ex as Error).message); }
   };
+  const review = async (p: Product, approve: boolean) => {
+    try { await post(`/api/admin/products/${p.id}/review`, { approve }); toast(approve ? 'Товар опубликован' : 'Товар возвращён поставщику'); load(); }
+    catch (ex) { toast((ex as Error).message); }
+  };
   const open = (p: Product) => setEdit({ ...p, photos: p.photos.length ? p.photos : [p.photo] });
   if (!list) return <p className="text-muted">Загружаем…</p>;
   const f = <K extends keyof Draft>(k: K, v: Draft[K]) => setEdit((x) => (x ? { ...x, [k]: v } : x));
 
   const term = q.trim().toLowerCase();
-  const shown = list.filter((p) => (!pub || (pub === 'on') === p.active) && (!region || p.region === region) && (!category || p.category === category)
+  const shown = list.filter((p) => (!pub || (pub === 'review' ? !!p.review : (pub === 'on') === p.active)) && (!region || p.region === region) && (!category || p.category === category)
     && (!term || `${p.id} ${p.name} ${p.manufacturer}`.toLowerCase().includes(term)));
   const { rows, pages, page: cur } = paginate(shown, page, 12);
   const on = list.filter((p) => p.active).length;
@@ -69,7 +73,7 @@ export default function ProductsAdmin() {
         <div className="mt-4 flex flex-wrap gap-2"><button type="button" className="pill pill-soft" onClick={() => { setQ(''); setPub(''); setRegion(''); setCategory(''); setPage(1); }}>Сбросить фильтры</button></div>
       </Panel>
       <div className="mt-5 flex flex-wrap gap-2">
-        {([['', `Все · ${list.length}`], ['on', `Опубликованы · ${on}`], ['off', `Скрыты · ${list.length - on}`]] as const).map(([k, t]) => <button key={k || 'all'} type="button" className={cn('pill', pub !== k && 'pill-soft')} onClick={() => { setPub(k); setPage(1); }}>{t}</button>)}
+        {([['', `Все · ${list.length}`], ['on', `Опубликованы · ${on}`], ['off', `Скрыты · ${list.length - on}`], ['review', `На проверке · ${list.filter((p) => p.review).length}`]] as const).map(([k, t]) => <button key={k || 'all'} type="button" className={cn('pill', pub !== k && 'pill-soft')} onClick={() => { setPub(k); setPage(1); }}>{t}</button>)}
       </div>
       {!list.length ? <div className="mt-4"><Empty title="Товаров пока нет" text="Добавьте первую сладость — она сразу появится в каталоге и на главной." /></div> : (
       <div className="mt-4 overflow-x-auto">
@@ -81,8 +85,10 @@ export default function ProductsAdmin() {
                 <div><b className="text-sm">{p.name}</b><span className="block text-xs text-muted">{p.id} · {p.weight_g} г{p.temp_sensitive && ' · термо'}</span></div></div></td>
               <td>{p.manufacturer || '—'}<span className="block text-xs text-muted">{meta.regions[p.region].name}</span></td>
               <td>{p.category}<b className="block">{rub(p.price_rub)}</b></td>
-              <td><span className={cn('pill', p.active ? 'pill-soft' : 'pill-fill')}>{p.active ? 'Опубликован' : 'Скрыт'}</span>
+              <td><span className={cn('pill', p.active ? 'pill-soft' : p.review ? '' : 'pill-fill')}>{p.active ? 'Опубликован' : p.review ? 'На проверке' : 'Скрыт'}</span>
                 <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[13px]">
+                  {p.review && <button type="button" className="font-semibold text-accent" onClick={() => review(p, true)}>Одобрить</button>}
+                  {p.review && <button type="button" className="text-muted hover:text-accent" onClick={() => review(p, false)}>Отклонить</button>}
                   <button type="button" className="text-accent" onClick={() => open(p)}>Изменить</button>
                   <button type="button" className="text-accent" onClick={() => setActive(p, !p.active)}>{p.active ? 'Скрыть' : 'Опубликовать'}</button>
                   <button type="button" className="text-muted hover:text-accent" onClick={() => remove(p)}>Удалить</button>

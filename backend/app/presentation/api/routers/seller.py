@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import date
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 
 from app.application import catalog, uploads, waves
 from app.application import notifications as notify
@@ -76,7 +76,15 @@ def product_unpublish(product_id: str, user: User = Depends(require_seller), u: 
 def upload(body: S.UploadIn, user: User = Depends(require_seller), c: Container = Depends(container),
            d: date = Depends(today)):
     s = uploads.request_upload(c.storage, body.content_type, body.size, d)
-    return S.UploadOut(upload_url=s.upload_url, public_url=s.public_url)
+    # локальное хранилище (разработка): загрузка идёт через маршрут кабинета поставщика
+    return S.UploadOut(upload_url=s.upload_url.replace("/api/admin/uploads/local/", "/api/seller/uploads/local/"),
+                       public_url=s.public_url)
+
+
+@router.put("/uploads/local/{path:path}", status_code=204, dependencies=[Depends(require_seller)])
+async def upload_local(path: str, request: Request, c: Container = Depends(container)):
+    from .admin import upload_local as admin_upload
+    await admin_upload(path, request, c)
 
 
 @router.get("/orders", response_model=list[S.ShopOrderOut])

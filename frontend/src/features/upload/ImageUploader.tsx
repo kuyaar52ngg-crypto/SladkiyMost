@@ -8,16 +8,16 @@ import { ACCEPT, prepareImage } from './convert';
 
 const MAX = 10;
 
-async function upload(file: File): Promise<string> {
+async function upload(file: File, endpoint: string): Promise<string> {
   const { blob, type } = await prepareImage(file);
-  const s = await post<SignedUpload>('/api/admin/uploads', { content_type: type, size: blob.size });
+  const s = await post<SignedUpload>(endpoint, { content_type: type, size: blob.size });
   const res = await fetch(s.upload_url, { method: 'PUT', body: blob, headers: { 'Content-Type': type, 'x-upsert': 'false' } });
   if (!res.ok) throw new Error(`Не удалось загрузить «${file.name}»`);
   return s.public_url;
 }
 
 /** Фото товара: drag&drop и выбор файлов, ссылка на картинку, порядок (первое — обложка), удаление. */
-export function ImageUploader({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
+export function ImageUploader({ value, onChange, endpoint = '/api/admin/uploads' }: { value: string[]; onChange: (v: string[]) => void; endpoint?: string }) {
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(0);
   const [over, setOver] = useState(false);
@@ -32,7 +32,7 @@ export function ImageUploader({ value, onChange }: { value: string[]; onChange: 
     setErr(''); setBusy((n) => n + list.length);
     const errors: string[] = [];
     await Promise.all(list.map(async (f) => {
-      try { const u = await upload(f); onChange((latest.current = [...latest.current, u])); }
+      try { const u = await upload(f, endpoint); onChange((latest.current = [...latest.current, u])); }
       catch (e) { errors.push((e as Error).message); }
       finally { setBusy((n) => n - 1); }
     }));

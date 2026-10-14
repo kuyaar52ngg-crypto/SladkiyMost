@@ -9,6 +9,7 @@ export interface Product {
   id: string; region: RegionId; manufacturer: string; name: string; category: string;
   weight_g: number; price_rub: number; temp_sensitive: boolean; shelf_life_days: number;
   photo: string; photos: string[]; description: string; composition: string; tag: string; active: boolean;
+  shop_id?: number | null; review?: boolean;
 }
 
 export interface Wave {
@@ -68,7 +69,7 @@ export interface Stats {
 
 export interface GiftDraft { recipient_name: string; recipient_phone: string; address: string; message: string; contact_first: boolean }
 export interface User {
-  id: number; role: 'admin' | 'customer'; name: string; phone: string; email: string | null; telegram: boolean;
+  id: number; role: 'admin' | 'customer' | 'seller'; shop_id?: number | null; name: string; phone: string; email: string | null; telegram: boolean;
   region: RegionId | null; notify_orders: boolean; notify_waves: boolean; notify_support: boolean; notify_news: boolean;
   gift_draft: GiftDraft | null;
 }
@@ -86,3 +87,15 @@ export interface Customer {
   orders: number; active_orders: number; spent_rub: number; last_order: string | null;
 }
 export interface SignedUpload { upload_url: string; public_url: string }
+
+export type ShopStatus = 'pending' | 'active' | 'blocked';
+export interface Shop {
+  id: number; name: string; region: RegionId; description: string; contact_name: string; phone: string; email: string;
+  photo: string; storage: string; status: ShopStatus; status_title: string; created_at: string | null;
+  products: number; published: number; in_review: number; orders: number; login_phone: string;
+}
+export type PrepStatus = 'new' | 'confirmed' | 'preparing' | 'ready' | 'handed' | 'done';
+export interface ShopOrder {
+  order: Order; shop_id: number; shop_name: string; prep_status: PrepStatus; prep_title: string;
+  prep_history: { status: PrepStatus; title: string; at: string; note: string }[];
+}

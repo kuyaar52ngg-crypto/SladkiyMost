@@ -1,13 +1,14 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
-// Кабинет администратора без cookie сессии сразу отправляем на вход.
-// Роль проверяет бэкенд (require_admin) и layout кабинета через /api/auth/me.
+// Кабинеты администратора и поставщика без cookie сессии сразу отправляем на вход.
+// Роль проверяет бэкенд (require_admin / require_seller) и layout кабинета через /api/auth/me.
 export function middleware(req: NextRequest) {
-  if (req.nextUrl.pathname === '/admin/login' || req.cookies.has('sm_session')) return NextResponse.next();
+  const area = req.nextUrl.pathname.startsWith('/seller') ? '/seller' : '/admin';
+  if (req.nextUrl.pathname === `${area}/login` || req.cookies.has('sm_session')) return NextResponse.next();
   const url = req.nextUrl.clone();
-  url.pathname = '/admin/login';
+  url.pathname = `${area}/login`;
   url.search = `?next=${encodeURIComponent(req.nextUrl.pathname + req.nextUrl.search)}`;
   return NextResponse.redirect(url);
 }
 
-export const config = { matcher: ['/admin', '/admin/:path*'] };
+export const config = { matcher: ['/admin', '/admin/:path*', '/seller', '/seller/:path*'] };

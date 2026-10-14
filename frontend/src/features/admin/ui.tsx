@@ -7,7 +7,7 @@ import { Crumbs } from '@/shared/ui';
 export function AdminHead({ title, crumb, text, children }: { title: string; crumb?: [string, string?][]; text?: string; children?: ReactNode }) {
   return (
     <div className="mb-6">
-      <Crumbs items={[['Панель администратора', '/admin'], ...(crumb || [[title]])]} />
+      <Crumbs items={crumb?.[0]?.[0] === 'Кабинет поставщика' ? crumb : [['Панель администратора', '/admin'], ...(crumb || [[title]])]} />
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="font-head text-[28px] font-bold leading-tight md:text-[34px]">{title}</h1>
         {children}

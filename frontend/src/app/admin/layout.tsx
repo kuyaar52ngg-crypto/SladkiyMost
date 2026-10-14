@@ -10,7 +10,7 @@ import { Icon } from '@/shared/ui';
 import { Logo } from '@/widgets/Logo';
 
 const NAV = [
-  ['/admin', 'Дашборд'], ['/admin/orders', 'Заказы'], ['/admin/waves', 'Сборные партии'], ['/admin/products', 'Товары'],
+  ['/admin', 'Дашборд'], ['/admin/orders', 'Заказы'], ['/admin/waves', 'Сборные партии'], ['/admin/products', 'Товары'], ['/admin/sellers', 'Продавцы'],
   ['/admin/customers', 'Покупатели'], ['/admin/analytics', 'Аналитика'],
 ] as const;
 const active = (path: string, href: string) => (href === '/admin' ? path === href : path.startsWith(href));

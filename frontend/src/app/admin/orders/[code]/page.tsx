@@ -6,7 +6,7 @@ import { Info, Items, OrderPath, Row, units } from '@/features/account/parts';
 import { AdminHead, ORDER_ADMIN, Panel, WAVE_PILL, waveName, waveUrl } from '@/features/admin/ui';
 import { useShop } from '@/features/shop/store';
 import { get, post } from '@/shared/api/client';
-import type { Order, OrderStatus } from '@/shared/api/types';
+import type { Order, OrderStatus, ShopOrder } from '@/shared/api/types';
 import { cn, fmtDate, kg, rub } from '@/shared/lib/format';
 
 const HINT: Record<OrderStatus, string> = {
@@ -21,8 +21,10 @@ export default function AdminOrder() {
   const [status, setStatus] = useState<OrderStatus | ''>('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const [shops, setShops] = useState<ShopOrder[]>([]);
   const load = useCallback(() => { get<Order>(`/api/admin/orders/${encodeURIComponent(code)}`).then((x) => { setO(x); setStatus(x.status); }).catch(() => setO(false)); }, [code]);
   useEffect(load, [load]);
+  useEffect(() => { get<ShopOrder[]>(`/api/admin/orders/${encodeURIComponent(code)}/shops`).then(setShops).catch(() => setShops([])); }, [code]);
   if (o === null) return <p className="text-muted">Загружаем…</p>;
   if (!o) return <><AdminHead title="Заказ не найден" crumb={[['Заказы', '/admin/orders'], [code]]} /><Link className="btn" href="/admin/orders">К заказам</Link></>;
 
@@ -91,6 +93,17 @@ export default function AdminOrder() {
           <Panel title="История заказа"><OrderPath o={o} /></Panel>
         </div>
       </div>
+
+      {shops.length > 0 && (
+        <Panel className="mt-6" title="Поставщики и подготовка">
+          <div className="overflow-x-auto"><table className="table-x min-w-[560px]">
+            <thead><tr><th>Магазин</th><th>Позиции</th><th>Этап</th><th>Последняя отметка</th></tr></thead>
+            <tbody>{shops.map((x) => { const h = x.prep_history.at(-1); return (
+              <tr key={x.shop_id}><td className="font-semibold">{x.shop_name}</td><td>{x.order.items.map((i) => `${i.name} × ${i.qty}`).join(', ')}</td>
+                <td className="text-accent">{x.prep_title}</td><td className="text-[13px]">{h ? `${new Date(h.at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}${h.note ? ` · ${h.note}` : ''}` : '—'}</td></tr>); })}</tbody>
+          </table></div>
+        </Panel>
+      )}
 
       <Panel className="mt-6" title="Разрешённые действия">
         <p className="text-[13px] text-muted">Статус меняется вручную с указанием причины. Покупатель получит уведомление в кабинете и в Telegram.</p>
