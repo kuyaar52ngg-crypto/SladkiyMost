@@ -6,13 +6,16 @@ import hashlib
 import hmac
 
 from app.infrastructure.clock import SystemClock
-from app.infrastructure.config import settings
+from app.infrastructure.config import Settings, settings
 from app.infrastructure.db.uow import SqlUnitOfWork, make_session_factory
 from app.infrastructure.security import Argon2Hasher, SessionTokens
 from app.infrastructure.storage import LocalStorage, SupabaseStorage
 from app.infrastructure.telegram import TelegramBot
 from app.presentation.api.app import create_app
 from app.presentation.api.deps import Container
+
+if settings.serverless and settings.jwt_secret == Settings.model_fields["jwt_secret"].default:
+    raise RuntimeError("Задайте JWT_SECRET: с секретом по умолчанию сессии можно подделать")
 
 _sessions = make_session_factory(settings.database_url, settings.serverless)
 _bot = TelegramBot(settings.telegram_bot_token)
