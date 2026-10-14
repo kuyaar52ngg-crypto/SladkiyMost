@@ -21,7 +21,7 @@ export function Footer() {
           ))}
         </div>
         <div className="mt-8 flex flex-wrap justify-between gap-4 border-t border-line pt-5 text-xs text-muted">
-          <span>© 2026 «Сладкий мост»</span><span></span><span>Цены и партии — условные</span>
+          <span>© 2026 «Сладкий мост»</span><span>KUYAAR</span><span>Цены и партии — условные</span>
         </div>
       </div>
     </footer>
