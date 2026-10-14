@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { connection } from 'next/server';
 import { Inter, Manrope, Montserrat_Alternates } from 'next/font/google';
 import { ShopProvider } from '@/features/shop/store';
 import { get } from '@/shared/api/client';
@@ -15,9 +16,9 @@ export const metadata: Metadata = {
   icons: { icon: '/img/logo.svg' },
 };
 export const viewport: Viewport = { themeColor: '#43281f', viewportFit: 'cover' };
-export const dynamic = 'force-dynamic';
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  await connection(); // рендер по запросу (без обращения к API во время сборки), данные — из Data Cache
   let meta: Meta | null = null;
   try { meta = await get<Meta>('/api/meta'); } catch { /* бэкенд недоступен */ }
   return (

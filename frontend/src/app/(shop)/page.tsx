@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { get, post } from '@/shared/api/client';
+import { calc, get } from '@/shared/api/client';
 import type { Meta, Product, QuoteResponse, Wave } from '@/shared/api/types';
 import { fmtDate, kg, rub } from '@/shared/lib/format';
 import { Empty, Icon } from '@/shared/ui';
@@ -14,7 +14,7 @@ export default async function Home() {
   const p = meta.policy;
   const next = (['YKT-DNR', 'DNR-YKT'] as const).map((d) => waves.find((w) => w.direction === d)).filter((w): w is Wave => !!w);
   const sample = [...next].sort((a, b) => a.rate - b.rate)[0];
-  const est = sample ? await post<QuoteResponse>('/api/quote/estimate', { wave_id: sample.id, weight_kg: 1 }) : null;
+  const est = sample ? await calc<QuoteResponse>('/api/quote/estimate', { wave_id: sample.id, weight_kg: 1 }) : null;
 
   return (
     <>
