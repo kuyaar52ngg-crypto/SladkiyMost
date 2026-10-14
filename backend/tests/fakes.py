@@ -116,6 +116,9 @@ class MemUsers:
     def admins(self):
         return [copy.deepcopy(u) for u in self.data.values() if u.role == Role.ADMIN]
 
+    def customers(self):
+        return [copy.deepcopy(u) for u in self.data.values() if u.role == Role.CUSTOMER]
+
     def add(self, u):
         u.id = next(self.seq)
         self.data[u.id] = copy.deepcopy(u)
@@ -148,12 +151,75 @@ class FakeStorage:
         return SignedUpload(f"https://upload.test/{path}", f"https://cdn.test/{path}")
 
 
+class MemAddresses:
+    def __init__(self):
+        self.data, self.seq = {}, itertools.count(1)
+
+    def of_user(self, uid):
+        return sorted((copy.deepcopy(a) for a in self.data.values() if a.user_id == uid),
+                      key=lambda a: (not a.is_default, a.id))
+
+    def get(self, aid):
+        return copy.deepcopy(self.data.get(aid))
+
+    def add(self, a):
+        a.id = next(self.seq)
+        self.data[a.id] = copy.deepcopy(a)
+
+    def save(self, a):
+        if a.id is None:
+            return self.add(a)
+        self.data[a.id] = copy.deepcopy(a)
+
+    def delete(self, aid):
+        self.data.pop(aid, None)
+
+
+class MemNotifications:
+    def __init__(self):
+        self.data, self.seq = [], itertools.count(1)
+
+    def add(self, n):
+        n.id = next(self.seq)
+        self.data.append(copy.deepcopy(n))
+
+    def of_user(self, uid, limit=100):
+        return [copy.deepcopy(n) for n in reversed(self.data) if n.user_id == uid][:limit]
+
+    def mark_read(self, uid, ids=None):
+        for n in self.data:
+            if n.user_id == uid and (ids is None or n.id in ids):
+                n.read = True
+
+
+class MemTickets:
+    def __init__(self):
+        self.data, self.seq = {}, itertools.count(1)
+
+    def add(self, t):
+        t.number = next(self.seq)
+        self.data[t.number] = copy.deepcopy(t)
+
+    def get(self, n):
+        return copy.deepcopy(self.data.get(n))
+
+    def save(self, t):
+        self.data[t.number] = copy.deepcopy(t)
+
+    def list(self, user_id=None):
+        return [copy.deepcopy(t) for t in sorted(self.data.values(), key=lambda t: -t.number)
+                if user_id is None or t.user_id == user_id]
+
+
 class MemUow:
     def __init__(self):
         self.products = MemProducts()
         self.orders = MemOrders()
         self.waves = MemWaves(self.orders)
         self.users = MemUsers()
+        self.addresses = MemAddresses()
+        self.notifications = MemNotifications()
+        self.tickets = MemTickets()
         self.commits = 0
 
     def __enter__(self):

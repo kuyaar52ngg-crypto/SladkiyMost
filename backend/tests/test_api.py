@@ -156,3 +156,29 @@ def test_telegram_mini_app_login(app):
                                                           "password": "secret123"}).json()["token"] is None
     finally:
         app.state.container.bot = None
+
+
+def test_cabinet_api(app):
+    me = client(app)
+    r = me.post("/api/auth/register", json={"phone": "+7 (914) 321-00-11", "name": "Вера", "password": "secret123"})
+    assert r.status_code == 201
+    assert me.put("/api/account/profile", json={"email": "vera@example.ru", "region": "DNR"}).json()["region"] == "DNR"
+    a = me.post("/api/account/addresses", json={"title": "Дом", "name": "Вера", "region": "DNR", "city": "Донецк",
+                                                "line": "ул. Мира, 1", "phone": "+7 (949) 111-22-33"})
+    assert a.status_code == 201 and a.json()["is_default"]
+    assert len(me.get("/api/account/addresses").json()) == 1
+    t = me.post("/api/account/tickets", json={"topic": "Другое", "text": "Есть ли без сахара?"})
+    assert t.status_code == 201 and t.json()["code"].startswith("ОБ-")
+    admin = client(app)
+    admin.post("/api/auth/login", json=ADMIN)
+    tickets = admin.get("/api/admin/tickets").json()
+    assert tickets[0]["customer_name"] == "Вера"
+    r = admin.post(f"/api/admin/tickets/{t.json()['number']}/messages", json={"text": "Скоро добавим."})
+    assert r.json()["status"] == "answered"
+    feed = me.get("/api/account/notifications").json()
+    assert feed[0]["kind"] == "support" and not feed[0]["read"]
+    assert me.post("/api/account/notifications/read", json={}).status_code == 200
+    assert all(n["read"] for n in me.get("/api/account/notifications").json())
+    assert any(c["name"] == "Вера" for c in admin.get("/api/admin/customers").json())
+    assert client(app).get("/api/account/addresses").status_code == 401
+    assert me.get("/api/admin/customers").status_code == 403

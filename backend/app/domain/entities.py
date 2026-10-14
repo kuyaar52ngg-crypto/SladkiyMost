@@ -245,3 +245,85 @@ class User:
     failed_logins: int = 0
     locked_until: datetime | None = None
     created_at: datetime | None = None
+    region: Region | None = None          # регион получения по умолчанию
+    notify_orders: bool = True            # каналы уведомлений (Telegram); в кабинете лента — всегда
+    notify_waves: bool = True
+    notify_support: bool = True
+    notify_news: bool = False
+    gift_draft: dict | None = None        # черновик открытки: получатель, слова, «сначала связаться»
+
+
+@dataclass
+class Address:
+    """Сохранённый адрес получения покупателя."""
+    id: int | None
+    user_id: int
+    title: str
+    name: str
+    region: Region
+    city: str
+    line: str
+    phone: str
+    is_default: bool = False
+
+
+class NotificationKind(StrEnum):
+    ORDER = "order"
+    WAVE = "wave"
+    SUPPORT = "support"
+    NEWS = "news"
+
+
+@dataclass
+class Notification:
+    """Запись ленты уведомлений в кабинете (дублируется в Telegram, если он подключён)."""
+    id: int | None
+    user_id: int
+    kind: NotificationKind
+    title: str
+    body: str
+    link: str = ""
+    created_at: datetime | None = None
+    read: bool = False
+
+
+class TicketStatus(StrEnum):
+    OPEN = "open"
+    IN_WORK = "in_work"
+    ANSWERED = "answered"
+    CLOSED = "closed"
+
+
+TICKET_STATUS_TITLES = {
+    TicketStatus.OPEN: "Новое",
+    TicketStatus.IN_WORK: "В работе",
+    TicketStatus.ANSWERED: "Ответ дан",
+    TicketStatus.CLOSED: "Закрыто",
+}
+
+TICKET_TOPICS = ["Сборная доставка", "Состав и наличие", "Адрес и получение", "Оплата и возврат", "Другое"]
+
+
+@dataclass
+class TicketMessage:
+    author: str          # "customer" | "support"
+    name: str
+    text: str
+    created_at: datetime | None = None
+
+
+@dataclass
+class Ticket:
+    """Обращение в поддержку."""
+    number: int | None
+    user_id: int
+    topic: str
+    order_code: str
+    status: TicketStatus = TicketStatus.OPEN
+    assignee: str = ""
+    created_at: datetime | None = None
+    messages: list[TicketMessage] = field(default_factory=list)
+
+    @property
+    def code(self) -> str:
+        return f"ОБ-{self.number:03d}" if self.number else "ОБ-…"

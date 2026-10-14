@@ -5,10 +5,10 @@ from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-from app.application import analytics, catalog, orders, uploads, waves
+from app.application import account, analytics, catalog, orders, uploads, waves
 from app.application import notifications as notify
 from app.application.ports import ProductFilter, UnitOfWork
-from app.domain.entities import OrderStatus
+from app.domain.entities import OrderStatus, User
 from app.domain.errors import DomainError
 
 from .. import schemas as S
@@ -40,6 +40,55 @@ def wave_status(wave_id: str, body: S.WaveStatusIn, u: UnitOfWork = Depends(uow)
 def order_list(status: OrderStatus | None = None, wave: str | None = None,
                u: UnitOfWork = Depends(uow), d: date = Depends(today)):
     return [_order_out(u, d, o) for o in orders.all_orders(u, status, wave)]
+
+
+@router.get("/orders/{code}", response_model=S.OrderOut)
+def order_detail(code: str, u: UnitOfWork = Depends(uow), d: date = Depends(today)):
+    return _order_out(u, d, orders.get_order(u, code))
+
+
+@router.get("/waves/{wave_id}", response_model=S.WaveOut)
+def wave_detail(wave_id: str, u: UnitOfWork = Depends(uow), d: date = Depends(today)):
+    return S.WaveOut.of(waves.get_wave_view(u, d, wave_id))
+
+
+@router.get("/customers", response_model=list[S.CustomerOut])
+def customers(u: UnitOfWork = Depends(uow)):
+    by_user: dict[int, list] = {}
+    for o in u.orders.list():
+        if o.user_id is not None:
+            by_user.setdefault(o.user_id, []).append(o)
+    out = []
+    for c in u.users.customers():
+        own = sorted(by_user.get(c.id, []), key=lambda o: o.number)
+        paid = [o for o in own if o.status != OrderStatus.CANCELLED]
+        out.append(S.CustomerOut(id=c.id, name=c.name, phone=c.phone, email=c.email, telegram=bool(c.tg_chat_id),
+                                 created_at=c.created_at, orders=len(own),
+                                 active_orders=sum(o.is_active for o in own), spent_rub=sum(o.total_rub for o in paid),
+                                 last_order=own[-1].code if own else None))
+    return out
+
+
+@router.get("/tickets", response_model=list[S.TicketOut])
+def ticket_list(u: UnitOfWork = Depends(uow)):
+    users = {c.id: c for c in u.users.customers()}
+    return [S.TicketOut.of(t, users.get(t.user_id)) for t in u.tickets.list()]
+
+
+@router.post("/tickets/{number}/messages", response_model=S.TicketOut)
+def ticket_reply(number: int, body: S.MessageIn, admin: User = Depends(require_admin), u: UnitOfWork = Depends(uow),
+                 c: Container = Depends(container)):
+    t = account.add_message(u, admin, number, body.text)
+    notify.ticket_updated(u, c.notifier, t, c.site_url, by_support=True)
+    return S.TicketOut.of(t, u.users.get(t.user_id))
+
+
+@router.post("/tickets/{number}/status", response_model=S.TicketOut)
+def ticket_status(number: int, body: S.TicketStatusIn, admin: User = Depends(require_admin),
+                  u: UnitOfWork = Depends(uow), c: Container = Depends(container)):
+    t = account.set_ticket_status(u, admin, number, body.status)
+    notify.ticket_updated(u, c.notifier, t, c.site_url, by_support=True)
+    return S.TicketOut.of(t, u.users.get(t.user_id))
 
 
 @router.post("/orders/{code}/status", response_model=S.OrderOut)

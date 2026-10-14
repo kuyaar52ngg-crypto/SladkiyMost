@@ -12,6 +12,7 @@ from sqlalchemy import (
     ForeignKey,
     Identity,
     Integer,
+    JSON,
     String,
     Text,
     func,
@@ -69,6 +70,65 @@ class UserRow(Base):
     tg_link_token: Mapped[str | None] = mapped_column(String(64), unique=True)
     failed_logins: Mapped[int] = mapped_column(Integer, default=0)
     locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    region: Mapped[str | None] = mapped_column(String(3))
+    notify_orders: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    notify_waves: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    notify_support: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    notify_news: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    gift_draft: Mapped[dict | None] = mapped_column(JSON)
+
+
+class AddressRow(Base):
+    __tablename__ = "addresses"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    title: Mapped[str] = mapped_column(String(60))
+    name: Mapped[str] = mapped_column(String(120))
+    region: Mapped[str] = mapped_column(String(3))
+    city: Mapped[str] = mapped_column(String(60))
+    line: Mapped[str] = mapped_column(String(300))
+    phone: Mapped[str] = mapped_column(String(40))
+    is_default: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class NotificationRow(Base):
+    __tablename__ = "notifications"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(10))
+    title: Mapped[str] = mapped_column(String(160))
+    body: Mapped[str] = mapped_column(Text)
+    link: Mapped[str] = mapped_column(String(300), default="")
+    read: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class TicketRow(Base):
+    __tablename__ = "tickets"
+
+    number: Mapped[int] = mapped_column(Integer, Identity(start=1), primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    topic: Mapped[str] = mapped_column(String(60))
+    order_code: Mapped[str] = mapped_column(String(20), default="")
+    status: Mapped[str] = mapped_column(String(10), index=True)
+    assignee: Mapped[str] = mapped_column(String(120), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    messages: Mapped[list["TicketMessageRow"]] = relationship(cascade="all, delete-orphan", lazy="selectin",
+                                                               order_by="TicketMessageRow.id")
+
+
+class TicketMessageRow(Base):
+    __tablename__ = "ticket_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ticket_number: Mapped[int] = mapped_column(ForeignKey("tickets.number", ondelete="CASCADE"), index=True)
+    author: Mapped[str] = mapped_column(String(10))
+    name: Mapped[str] = mapped_column(String(120))
+    text: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

@@ -10,12 +10,17 @@ from app.application.waves import WaveOffer, WaveView
 from app.domain import logistics as L
 from app.domain.entities import (
     ORDER_STATUS_TITLES,
+    TICKET_STATUS_TITLES,
     WAVE_STATUS_TITLES,
+    Address,
+    Notification,
     Order,
     OrderStatus,
     Product,
     ReceiveMethod,
     Region,
+    Ticket,
+    TicketStatus,
     User,
     WaveStatus,
 )
@@ -156,11 +161,143 @@ class UserOut(BaseModel):
     phone: str
     email: str | None
     telegram: bool
+    region: Region | None = None
+    notify_orders: bool = True
+    notify_waves: bool = True
+    notify_support: bool = True
+    notify_news: bool = False
+    gift_draft: dict | None = None
     token: str | None = None  # только для Telegram Mini App: сессия заголовком, если cookie недоступна
 
     @classmethod
     def of(cls, u: User) -> "UserOut":
-        return cls(id=u.id, role=u.role.value, name=u.name, phone=u.phone, email=u.email, telegram=bool(u.tg_chat_id))
+        return cls(id=u.id, role=u.role.value, name=u.name, phone=u.phone, email=u.email, telegram=bool(u.tg_chat_id),
+                   region=u.region, notify_orders=u.notify_orders, notify_waves=u.notify_waves,
+                   notify_support=u.notify_support, notify_news=u.notify_news, gift_draft=u.gift_draft)
+
+
+# ---------------- личный кабинет ----------------
+class ProfileIn(BaseModel):
+    name: str | None = Field(None, max_length=120)
+    phone: str | None = Field(None, max_length=40)
+    email: str | None = Field(None, max_length=160)
+    region: Region | None = None
+    notify_orders: bool | None = None
+    notify_waves: bool | None = None
+    notify_support: bool | None = None
+    notify_news: bool | None = None
+
+
+class PasswordIn(BaseModel):
+    current: str = Field(max_length=128)
+    new: str = Field(max_length=128)
+
+
+class GiftDraftIn(BaseModel):
+    recipient_name: str = Field("", max_length=120)
+    recipient_phone: str = Field("", max_length=40)
+    address: str = Field("", max_length=300)
+    message: str = Field("", max_length=200)
+    contact_first: bool = False
+
+
+class AddressIn(BaseModel):
+    title: str = Field("", max_length=60)
+    name: str = Field(max_length=120)
+    region: Region
+    city: str = Field(max_length=60)
+    line: str = Field(max_length=300)
+    phone: str = Field(max_length=40)
+    is_default: bool = False
+
+
+class AddressOut(BaseModel):
+    id: int
+    title: str
+    name: str
+    region: Region
+    city: str
+    line: str
+    phone: str
+    is_default: bool
+
+    @classmethod
+    def of(cls, a: Address) -> "AddressOut":
+        return cls(**{k: v for k, v in a.__dict__.items() if k != "user_id"})
+
+
+class NotificationOut(BaseModel):
+    id: int
+    kind: str
+    title: str
+    body: str
+    link: str
+    created_at: datetime
+    read: bool
+
+    @classmethod
+    def of(cls, n: Notification) -> "NotificationOut":
+        return cls(id=n.id, kind=n.kind.value, title=n.title, body=n.body, link=n.link, created_at=n.created_at,
+                   read=n.read)
+
+
+class ReadIn(BaseModel):
+    ids: list[int] | None = None  # None — отметить все
+
+
+class TicketIn(BaseModel):
+    topic: str = Field(max_length=60)
+    order_code: str = Field("", max_length=20)
+    text: str = Field(max_length=2000)
+
+
+class MessageIn(BaseModel):
+    text: str = Field(max_length=2000)
+
+
+class TicketStatusIn(BaseModel):
+    status: TicketStatus
+
+
+class TicketMessageOut(BaseModel):
+    author: str
+    name: str
+    text: str
+    created_at: datetime | None
+
+
+class TicketOut(BaseModel):
+    number: int
+    code: str
+    topic: str
+    order_code: str
+    status: TicketStatus
+    status_title: str
+    assignee: str
+    created_at: datetime
+    messages: list[TicketMessageOut]
+    customer_name: str = ""
+    customer_phone: str = ""
+
+    @classmethod
+    def of(cls, t: Ticket, customer: User | None = None) -> "TicketOut":
+        return cls(number=t.number, code=t.code, topic=t.topic, order_code=t.order_code, status=t.status,
+                   status_title=TICKET_STATUS_TITLES[t.status], assignee=t.assignee, created_at=t.created_at,
+                   messages=[TicketMessageOut(**m.__dict__) for m in t.messages],
+                   customer_name=customer.name if customer else "", customer_phone=customer.phone if customer else "")
+
+
+class CustomerOut(BaseModel):
+    id: int
+    name: str
+    phone: str
+    email: str | None
+    telegram: bool
+    created_at: datetime | None
+    orders: int
+    active_orders: int
+    spent_rub: int
+    last_order: str | None
 
 
 class LinkOut(BaseModel):

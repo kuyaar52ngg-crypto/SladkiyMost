@@ -9,9 +9,12 @@ from sqlalchemy.orm import Session
 from app.application.orders import phone_digits
 from app.application.ports import ProductFilter
 from app.domain.entities import (
+    Address,
     Direction,
     GiftCard,
     LineItem,
+    Notification,
+    NotificationKind,
     Order,
     OrderEvent,
     OrderKind,
@@ -21,12 +24,27 @@ from app.domain.entities import (
     Recipient,
     Region,
     Role,
+    Ticket,
+    TicketMessage,
+    TicketStatus,
     User,
     Wave,
     WaveStatus,
 )
 
-from .models import OrderEventRow, OrderItemRow, OrderRow, ProductPhotoRow, ProductRow, UserRow, WaveRow
+from .models import (
+    AddressRow,
+    NotificationRow,
+    OrderEventRow,
+    OrderItemRow,
+    OrderRow,
+    ProductPhotoRow,
+    ProductRow,
+    TicketMessageRow,
+    TicketRow,
+    UserRow,
+    WaveRow,
+)
 
 # ---------------- products ----------------
 PRODUCT_FIELDS = ("manufacturer", "name", "category", "weight_g", "price_rub", "temp_sensitive",
@@ -222,11 +240,12 @@ class SqlOrderRepository:
 
 # ---------------- users ----------------
 USER_FIELDS = ("phone", "name", "email", "password_hash", "tg_chat_id", "tg_link_token", "failed_logins",
-               "locked_until")
+               "locked_until", "notify_orders", "notify_waves", "notify_support", "notify_news", "gift_draft")
 
 
 def _user(r: UserRow) -> User:
-    return User(id=r.id, role=Role(r.role), created_at=r.created_at, **{f: getattr(r, f) for f in USER_FIELDS})
+    return User(id=r.id, role=Role(r.role), created_at=r.created_at, region=Region(r.region) if r.region else None,
+                **{f: getattr(r, f) for f in USER_FIELDS})
 
 
 class SqlUserRepository:
@@ -253,6 +272,10 @@ class SqlUserRepository:
     def admins(self) -> list[User]:
         return [_user(r) for r in self.s.scalars(select(UserRow).where(UserRow.role == Role.ADMIN.value))]
 
+    def customers(self) -> list[User]:
+        q = select(UserRow).where(UserRow.role == Role.CUSTOMER.value).order_by(UserRow.id.desc())
+        return [_user(r) for r in self.s.scalars(q)]
+
     def add(self, u: User) -> None:
         r = UserRow()
         self._fill(r, u)
@@ -270,5 +293,124 @@ class SqlUserRepository:
     @staticmethod
     def _fill(r: UserRow, u: User) -> None:
         r.role, r.phone_digits = u.role.value, phone_digits(u.phone)
+        r.region = u.region.value if u.region else None
         for f in USER_FIELDS:
             setattr(r, f, getattr(u, f))
+
+
+ADDRESS_FIELDS = ("user_id", "title", "name", "city", "line", "phone", "is_default")
+
+
+def _address(r: AddressRow) -> Address:
+    return Address(id=r.id, region=Region(r.region), **{f: getattr(r, f) for f in ADDRESS_FIELDS})
+
+
+class SqlAddressRepository:
+    def __init__(self, s: Session):
+        self.s = s
+
+    def of_user(self, user_id: int) -> list[Address]:
+        q = select(AddressRow).where(AddressRow.user_id == user_id).order_by(AddressRow.is_default.desc(), AddressRow.id)
+        return [_address(r) for r in self.s.scalars(q)]
+
+    def get(self, address_id: int) -> Address | None:
+        r = self.s.get(AddressRow, address_id)
+        return _address(r) if r else None
+
+    def add(self, a: Address) -> None:
+        r = AddressRow()
+        self._fill(r, a)
+        self.s.add(r)
+        self.s.flush()
+        a.id = r.id
+
+    def save(self, a: Address) -> None:
+        r = self.s.get(AddressRow, a.id) if a.id is not None else None
+        if r is None:
+            return self.add(a)
+        self._fill(r, a)
+        self.s.flush()
+
+    def delete(self, address_id: int) -> None:
+        if r := self.s.get(AddressRow, address_id):
+            self.s.delete(r)
+            self.s.flush()
+
+    @staticmethod
+    def _fill(r: AddressRow, a: Address) -> None:
+        r.region = a.region.value
+        for f in ADDRESS_FIELDS:
+            setattr(r, f, getattr(a, f))
+
+
+def _notification(r: NotificationRow) -> Notification:
+    return Notification(id=r.id, user_id=r.user_id, kind=NotificationKind(r.kind), title=r.title, body=r.body,
+                        link=r.link, created_at=r.created_at, read=r.read)
+
+
+class SqlNotificationRepository:
+    def __init__(self, s: Session):
+        self.s = s
+
+    def add(self, n: Notification) -> None:
+        r = NotificationRow(user_id=n.user_id, kind=n.kind.value, title=n.title, body=n.body, link=n.link, read=n.read)
+        self.s.add(r)
+        self.s.flush()
+        n.id, n.created_at = r.id, r.created_at
+
+    def of_user(self, user_id: int, limit: int = 100) -> list[Notification]:
+        q = (select(NotificationRow).where(NotificationRow.user_id == user_id)
+             .order_by(NotificationRow.id.desc()).limit(limit))
+        return [_notification(r) for r in self.s.scalars(q)]
+
+    def mark_read(self, user_id: int, ids: list[int] | None = None) -> None:
+        q = select(NotificationRow).where(NotificationRow.user_id == user_id, NotificationRow.read.is_(False))
+        if ids is not None:
+            q = q.where(NotificationRow.id.in_(ids))
+        for r in self.s.scalars(q):
+            r.read = True
+        self.s.flush()
+
+
+def _ticket(r: TicketRow) -> Ticket:
+    return Ticket(number=r.number, user_id=r.user_id, topic=r.topic, order_code=r.order_code,
+                  status=TicketStatus(r.status), assignee=r.assignee, created_at=r.created_at,
+                  messages=[TicketMessage(m.author, m.name, m.text, m.created_at) for m in r.messages])
+
+
+class SqlTicketRepository:
+    def __init__(self, s: Session):
+        self.s = s
+
+    def add(self, t: Ticket) -> None:
+        r = TicketRow()
+        self._fill(r, t)
+        self.s.add(r)
+        self.s.flush()
+        self.s.refresh(r)
+        t.number, t.created_at = r.number, r.created_at
+        t.messages = [TicketMessage(m.author, m.name, m.text, m.created_at) for m in r.messages]
+
+    def get(self, number: int) -> Ticket | None:
+        r = self.s.get(TicketRow, number)
+        return _ticket(r) if r else None
+
+    def save(self, t: Ticket) -> None:
+        r = self.s.get(TicketRow, t.number) if t.number is not None else None
+        if r is None:
+            return self.add(t)
+        self._fill(r, t)
+        self.s.flush()
+
+    def list(self, user_id: int | None = None) -> list[Ticket]:
+        q = select(TicketRow).order_by(TicketRow.number.desc())
+        if user_id is not None:
+            q = q.where(TicketRow.user_id == user_id)
+        return [_ticket(r) for r in self.s.scalars(q)]
+
+    @staticmethod
+    def _fill(r: TicketRow, t: Ticket) -> None:
+        r.user_id, r.topic, r.order_code, r.status, r.assignee = t.user_id, t.topic, t.order_code, t.status.value, t.assignee
+        # сообщения только добавляются: дописываем новые в конец
+        for m in t.messages[len(r.messages):]:
+            r.messages.append(TicketMessageRow(author=m.author, name=m.name, text=m.text))

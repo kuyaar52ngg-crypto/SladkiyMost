@@ -5,7 +5,15 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import NullPool
 
-from .repositories import SqlOrderRepository, SqlProductRepository, SqlUserRepository, SqlWaveRepository
+from .repositories import (
+    SqlAddressRepository,
+    SqlNotificationRepository,
+    SqlOrderRepository,
+    SqlProductRepository,
+    SqlTicketRepository,
+    SqlUserRepository,
+    SqlWaveRepository,
+)
 
 
 def make_session_factory(url: str, serverless: bool = False) -> sessionmaker[Session]:
@@ -28,6 +36,9 @@ class SqlUnitOfWork:
         self.waves = SqlWaveRepository(self.session)
         self.orders = SqlOrderRepository(self.session)
         self.users = SqlUserRepository(self.session)
+        self.addresses = SqlAddressRepository(self.session)
+        self.notifications = SqlNotificationRepository(self.session)
+        self.tickets = SqlTicketRepository(self.session)
         return self
 
     def __exit__(self, *exc) -> None:

@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from app.domain.errors import Conflict, DomainError, Forbidden, NotFound, Unauthorized
 
 from .deps import Container
-from .routers import admin, auth, shop, telegram
+from .routers import account, admin, auth, shop, telegram
 
 STATUS = {NotFound: 404, Conflict: 409, Forbidden: 403, Unauthorized: 401}
 
@@ -31,6 +31,7 @@ def create_app(container: Container, cors_origins: list[str] | None = None) -> F
 
     app.include_router(shop.router)
     app.include_router(auth.router)
+    app.include_router(account.router)
     app.include_router(admin.router)
     app.include_router(telegram.router)
     return app
