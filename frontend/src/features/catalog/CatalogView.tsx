@@ -102,7 +102,12 @@ export function CatalogView({ products, popularOrder, initial }: { products: Pro
           ) : !products.length ? (
             <Empty title="Скоро здесь появятся сладости" text="Мы уже собираем ассортимент Якутии и Донбасса. Загляните чуть позже." />
           ) : (
-            <div className="py-14 text-center"><h3 className="h3 mb-2.5">Ничего не нашлось</h3><p className="text-muted">Попробуйте изменить фильтры или поисковый запрос.</p><button className="btn mt-4" onClick={reset}>Сбросить фильтры</button></div>
+            <div className="rounded-card border border-line px-6 py-12 sm:px-12">
+              <span className="mx-auto grid size-12 place-items-center rounded-full bg-[#faf8f7] text-muted"><Icon name="search" className="size-5" /></span>
+              <h3 className="h3 mt-6">Ничего не нашлось</h3>
+              <p className="mt-3 text-[15px] text-muted">Попробуйте изменить запрос или сбросить часть фильтров. Сладости одного региона едут одной сборной отправкой — можно посмотреть вкусы другого.</p>
+              <div className="mt-6 flex flex-wrap gap-3"><button className="btn btn-primary" onClick={reset}>Сбросить фильтры</button><a className="btn" href="/catalog">Вернуться в каталог</a></div>
+            </div>
           )}
           <Note className="mt-8">Фактическое наличие, состав и сроки годности подтверждаются перед отправкой партии.</Note>
         </div>

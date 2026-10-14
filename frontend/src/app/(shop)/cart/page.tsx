@@ -5,7 +5,7 @@ import { Layout, Loading, Summary } from '@/features/checkout/common';
 import { cartFor, goods, netKg, other, useShop } from '@/features/shop/store';
 import type { RegionId } from '@/shared/api/types';
 import { kg, rub } from '@/shared/lib/format';
-import { Crumbs, Empty, Icon, Note, PageHead, Photo, Steps } from '@/shared/ui';
+import { Crumbs, Icon, Note, PageHead, Photo, Steps } from '@/shared/ui';
 
 export default function CartPage() {
   const { ready, cart, setQty, toast, draft, setDraft, meta } = useShop();
@@ -15,9 +15,14 @@ export default function CartPage() {
   if (!groups.length) {
     return (
       <div className="container-x pt-7 pb-20"><Crumbs items={[['Главная', '/'], ['Корзина']]} />
-        <Empty title="Корзина пока пуста" text="Выберите сладости Якутии или Донбасса — а мы подберём ближайшую сборную отправку.">
-          <Link className="btn btn-primary" href="/catalog">В каталог</Link><Link className="btn" href="/gift">Собрать подарок</Link>
-        </Empty></div>
+        <PageHead title="Корзина" text="0 товаров · здесь появятся выбранные вами сладости." />
+        <div className="mx-auto max-w-[560px] py-10 text-center">
+          <span className="mx-auto grid size-14 place-items-center rounded-full bg-pink text-accent"><Icon name="bag" className="size-6" /></span>
+          <h2 className="h3 mt-6">В корзине пока нет сладостей</h2>
+          <p className="mt-3 text-[15px] text-muted">Загляните в каталог: там вкусы Якутии и Донбасса для тёплого чаепития. Выберите то, что хочется попробовать.</p>
+          <Link className="btn btn-primary mt-6" href="/catalog">Перейти в каталог</Link>
+          <p className="mt-6 text-xs text-muted">Начните с любимого вкуса. Оформление станет доступно после добавления товаров.</p>
+        </div></div>
     );
   }
   const go = (origin: RegionId) => {

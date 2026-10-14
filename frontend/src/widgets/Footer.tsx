@@ -3,13 +3,13 @@ import { Logo } from './Logo';
 
 const COLS: [string, [string, string][]][] = [
   ['Выбрать сладости', [['/catalog?region=YKT', 'Сладости Якутии'], ['/catalog?region=DNR', 'Сладости Донбасса'], ['/catalog?category=Подарочные наборы', 'Подарочные наборы']]],
-  ['Покупателю', [['/delivery', 'Как работает доставка'], ['/delivery#rules', 'Оплата и получение'], ['/orders', 'Мои заказы']]],
-  ['Будем на связи', [['/about#contacts', 'Задать вопрос'], ['/admin', 'Кабинет администратора'], ['/about#business', 'Бизнес-модель']]],
+  ['Покупателю', [['/delivery', 'Как работает доставка'], ['/delivery#rules', 'Оплата и получение'], ['/account/orders', 'Мои заказы']]],
+  ['Будем на связи', [['/account/support', 'Задать вопрос'], ['/seller/login', 'Кабинет поставщика'], ['/about', 'О нас']]],
 ];
 
 export function Footer() {
   return (
-    <footer className="bg-soft pt-10 pb-6">
+    <footer className="bg-[#faf8f7] pt-12 pb-6">
       <div className="container-x">
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
           <div className="sm:col-span-2 lg:col-span-1"><Logo align="start" /><p className="mt-3 text-[13px] text-muted">Сладости, которые делают расстояния меньше.</p></div>
@@ -21,7 +21,7 @@ export function Footer() {
           ))}
         </div>
         <div className="mt-8 flex flex-wrap justify-between gap-4 border-t border-line pt-5 text-xs text-muted">
-          <span>© 2026 «Сладкий мост»</span><span>KUYAAR</span><span>Цены и партии — условные</span>
+          <span>© 2026 «Сладкий мост»</span><Link className="hover:text-accent" href="/about#privacy">Политика конфиденциальности</Link><Link className="hover:text-accent" href="/delivery#rules">Условия заказа</Link>
         </div>
       </div>
     </footer>

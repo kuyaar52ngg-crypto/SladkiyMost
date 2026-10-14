@@ -15,7 +15,7 @@ export function Header() {
     <>
       <div className="bg-ink px-3 py-2 text-center text-xs text-white">Соединяем регионы через вкус и эмоции</div>
       <header className="sticky top-0 z-30 border-b border-line bg-white">
-        <div className="container-x flex min-h-[72px] items-center justify-between gap-6 md:min-h-24">
+        <div className="container-x flex min-h-[72px] items-center justify-between gap-6 md:min-h-[111px]">
           <Logo />
           <nav aria-label="Основная навигация" className="hidden gap-7 text-sm md:flex">
             {NAV.map(([href, t]) => (
