@@ -16,7 +16,6 @@ class Container:
     """Собирается в composition root (app/main.py) — presentation не знает о конкретной БД."""
     uow_factory: Callable[[], UnitOfWork]
     clock: Clock
-    base_load: wave_cases.BaseLoad
     admin_token: str
     _synced: date | None = None
 
@@ -33,7 +32,7 @@ def uow(c: Container = Depends(container), d: date = Depends(today)) -> Iterator
     with c.uow_factory() as u:
         if c._synced != d:  # расписание волн и авто-закрытие приёма — раз в день
             try:
-                wave_cases.sync_schedule(u, d, c.base_load)
+                wave_cases.sync_schedule(u, d)
             except Exception:
                 # параллельный экземпляр (serverless) мог уже создать те же волны
                 u.rollback()

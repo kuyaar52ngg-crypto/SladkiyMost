@@ -6,7 +6,7 @@ from app.application import orders as O
 from app.application import waves as W
 from app.domain.entities import Direction, OrderStatus, WaveStatus
 from app.domain.errors import Conflict, DomainError
-from app.infrastructure.seed import PRODUCTS
+from .catalog_data import PRODUCTS
 
 from .fakes import MemUow
 

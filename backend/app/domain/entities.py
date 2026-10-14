@@ -152,7 +152,7 @@ class Wave:
     arrival_to: date
     off_season: bool
     status: WaveStatus = WaveStatus.COLLECTING
-    base_load_kg: float = 0.0  # загрузка от покупателей вне системы / демо
+    base_load_kg: float = 0.0  # загрузка, учтённая вне системы (например, оптовые партии)
     final_load_kg: float | None = None
     final_rate: float | None = None
 

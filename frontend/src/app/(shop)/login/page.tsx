@@ -4,8 +4,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState, type FormEvent } from 'react';
 import { useShop } from '@/features/shop/store';
 
-const DEMO = { name: 'Анна Морозова', phone: '+7 (914) 123-45-67' };
-
 function Login() {
   const { setProfile } = useShop();
   const router = useRouter();
@@ -33,7 +31,6 @@ function Login() {
             <label className="field"><span className="label">Телефон *</span><input className="input" type="tel" autoComplete="tel" placeholder="+7 (___) ___-__-__" value={v.phone} onChange={(e) => setV({ ...v, phone: e.target.value })} /></label>
             {err && <p className="text-xs text-accent">{err}</p>}
             <button className="btn btn-primary w-full">Войти</button>
-            <button type="button" className="link" onClick={() => setV(DEMO)}>Демо-покупатель: {DEMO.phone}</button>
           </form>
           <p className="mt-4 text-xs text-muted">В MVP вход упрощён: код из СМС имитируется.</p></div>
         <div className="card-soft"><h3 className="h3 mb-2">Отследить заказ</h3><p className="text-[13px] text-muted">Знаете номер заказа? Введите его — покажем статус.</p>

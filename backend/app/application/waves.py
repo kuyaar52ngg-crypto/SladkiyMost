@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import Callable, Sequence
+from typing import Sequence
 
 from app.domain import logistics as L
 from app.domain.entities import (
@@ -18,14 +18,6 @@ from app.domain.entities import (
 from app.domain.errors import NotFound
 
 from .ports import UnitOfWork
-
-# Оценка «внешней» загрузки волны (другие каналы продаж/демо). Реализация — в infrastructure.
-BaseLoad = Callable[[Wave, str], float]
-
-
-def no_base_load(_: Wave, __: str) -> float:
-    return 0.0
-
 
 @dataclass(frozen=True)
 class WaveView:
@@ -52,26 +44,26 @@ def _status_by_date(w: Wave, today: date) -> WaveStatus:
     return WaveStatus.DONE
 
 
-def sync_schedule(uow: UnitOfWork, today: date, base_load: BaseLoad = no_base_load,
-                  p: L.LogisticsPolicy = L.DEFAULT_POLICY) -> None:
-    """Создаёт недостающие волны (8 недель назад … 6 недель вперёд) и закрывает просроченный приём."""
+def sync_schedule(uow: UnitOfWork, today: date, p: L.LogisticsPolicy = L.DEFAULT_POLICY) -> list[Wave]:
+    """Создаёт недостающие волны (8 недель назад … 6 недель вперёд) и закрывает просроченный приём.
+
+    Возвращает волны, приём в которые закрыт автоматически.
+    """
     existing = uow.waves.existing_ids()
     for direction in Direction:
-        has_open = any(w.cutoff >= today for w in uow.waves.list(direction))
         for w in L.schedule(direction, today - timedelta(days=56), today + timedelta(days=42), p):
             if w.id in existing:
                 continue
-            past = w.cutoff < today
-            kind = "past" if past else ("future" if has_open else "current")
-            has_open = has_open or not past
-            w.base_load_kg = round(base_load(w, kind), 1)
-            if past:
+            if w.cutoff < today:
                 w.status = _status_by_date(w, today)
             uow.waves.add(w)
+    closed = []
     for w in uow.waves.list():
         if w.status == WaveStatus.COLLECTING and today > w.cutoff:
             _apply_status(uow, w, WaveStatus.CLOSED, today, "Автоматически: истёк срок приёма", p)
+            closed.append(w)
     uow.commit()
+    return closed
 
 
 def _views(uow: UnitOfWork, today: date, waves: Sequence[Wave], p: L.LogisticsPolicy) -> list[WaveView]:

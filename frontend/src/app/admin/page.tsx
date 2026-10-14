@@ -4,7 +4,7 @@ import { useShop } from '@/features/shop/store';
 import { get } from '@/shared/api/client';
 import type { Stats } from '@/shared/api/types';
 import { fmtDate, kg, rub } from '@/shared/lib/format';
-import { FillBar, Note } from '@/shared/ui';
+import { FillBar } from '@/shared/ui';
 
 export default function Dashboard() {
   const { meta } = useShop();
@@ -41,7 +41,6 @@ export default function Dashboard() {
           {[...meta.order_statuses, { id: 'cancelled' as const, title: 'Отменён' }].map((st) => <div key={st.id} className="kv"><span>{st.title}</span><b>{s.by_status[st.id] || 0}</b></div>)}
           <div className="kv"><span>Из них подарков</span><b>{s.gifts}</b></div></div>
       </div>
-      <Note className="mt-6">Демонстрационные данные: прошлые партии содержат условную загрузку от других покупателей.</Note>
     </>
   );
 }

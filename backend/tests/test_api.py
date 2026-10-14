@@ -13,11 +13,10 @@ URL = os.environ.get("TEST_DATABASE_URL", "postgresql+psycopg://sm:sm@localhost:
 def client():
     from fastapi.testclient import TestClient
 
-    from app.application.waves import no_base_load
     from app.infrastructure.clock import SystemClock
     from app.infrastructure.db.models import Base
     from app.infrastructure.db.uow import SqlUnitOfWork, make_session_factory
-    from app.infrastructure.seed import PRODUCTS
+    from tests.catalog_data import PRODUCTS
     from app.presentation.api.app import create_app
     from app.presentation.api.deps import Container
 
@@ -34,12 +33,12 @@ def client():
         for p in PRODUCTS:
             u.products.save(p)
         u.commit()
-    app = create_app(Container(lambda: SqlUnitOfWork(sessions), SystemClock(date(2026, 10, 14)), no_base_load, "secret"))
+    app = create_app(Container(lambda: SqlUnitOfWork(sessions), SystemClock(date(2026, 10, 14)), "secret"))
     return TestClient(app)
 
 
 def test_end_to_end_order_flow(client):
-    assert len(client.get("/api/products", params={"region": "DNR"}).json()) == 10
+    assert len(client.get("/api/products", params={"region": "DNR"}).json()) == 3
     offers = client.post("/api/waves/offers", json={"items": [{"id": "DNR-001", "qty": 2}]}).json()
     wave = offers[0]["wave"]
     assert wave["direction"] == "DNR-YKT" and offers[0]["quote"]["delivery_rub"] > 0
