@@ -66,5 +66,23 @@ export interface Stats {
   counter: { direction: DirectionId; title: string; wave: Wave | null; forecast_kg: number | null }[];
 }
 
-export interface User { id: number; role: 'admin' | 'customer'; name: string; phone: string; email: string | null; telegram: boolean }
+export interface GiftDraft { recipient_name: string; recipient_phone: string; address: string; message: string; contact_first: boolean }
+export interface User {
+  id: number; role: 'admin' | 'customer'; name: string; phone: string; email: string | null; telegram: boolean;
+  region: RegionId | null; notify_orders: boolean; notify_waves: boolean; notify_support: boolean; notify_news: boolean;
+  gift_draft: GiftDraft | null;
+}
+export interface Address { id: number; title: string; name: string; region: RegionId; city: string; line: string; phone: string; is_default: boolean }
+export type NotificationKind = 'order' | 'wave' | 'support' | 'news';
+export interface Notice { id: number; kind: NotificationKind; title: string; body: string; link: string; created_at: string; read: boolean }
+export type TicketStatus = 'open' | 'in_work' | 'answered' | 'closed';
+export interface Ticket {
+  number: number; code: string; topic: string; order_code: string; status: TicketStatus; status_title: string;
+  assignee: string; created_at: string; customer_name: string; customer_phone: string;
+  messages: { author: 'customer' | 'support'; name: string; text: string; created_at: string | null }[];
+}
+export interface Customer {
+  id: number; name: string; phone: string; email: string | null; telegram: boolean; created_at: string | null;
+  orders: number; active_orders: number; spent_rub: number; last_order: string | null;
+}
 export interface SignedUpload { upload_url: string; public_url: string }

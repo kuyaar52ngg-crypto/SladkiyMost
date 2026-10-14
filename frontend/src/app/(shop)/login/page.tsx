@@ -9,8 +9,8 @@ function Login() {
   const { user, profile } = useShop();
   const router = useRouter();
   const sp = useSearchParams();
-  const raw = sp.get('next') || '/orders';
-  const next = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/orders';
+  const raw = sp.get('next') || '/account';
+  const next = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/account';
   const [t, setT] = useState({ code: '', phone: '' });
   useEffect(() => { if (user) router.replace(next); }, [user, next, router]);
   useEffect(() => { if (profile) setT((x) => ({ ...x, phone: x.phone || profile.phone })); }, [profile]);

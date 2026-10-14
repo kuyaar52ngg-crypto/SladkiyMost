@@ -8,7 +8,7 @@ import './globals.css';
 
 const inter = Inter({ subsets: ['latin', 'cyrillic'], variable: '--font-inter' });
 const manrope = Manrope({ subsets: ['latin', 'cyrillic'], variable: '--font-manrope' });
-const mont = Montserrat_Alternates({ subsets: ['latin', 'cyrillic'], weight: '800', variable: '--font-mont' });
+const mont = Montserrat_Alternates({ subsets: ['latin', 'cyrillic'], weight: ['600', '700', '800'], variable: '--font-mont' });
 
 export const metadata: Metadata = {
   title: { default: 'Сладкий мост — сладости Якутии и Донбасса', template: '%s · Сладкий мост' },

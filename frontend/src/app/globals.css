@@ -15,7 +15,7 @@
   --color-snow: #4b7a9a;
 
   --font-sans: var(--font-inter), system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-head: var(--font-manrope), var(--font-inter), system-ui, sans-serif;
+  --font-head: var(--font-mont), var(--font-manrope), system-ui, sans-serif;
   --font-brand: var(--font-mont), var(--font-manrope), system-ui, sans-serif;
 
   --radius-card: 12px;
@@ -31,9 +31,10 @@
 
 @layer components {
   .container-x { @apply mx-auto w-full max-w-[1248px] px-4 sm:px-6; }
-  .h1 { @apply font-head text-[30px] font-bold leading-[1.1] tracking-tight sm:text-[40px] lg:text-[48px]; }
-  .h2 { @apply font-head text-2xl font-semibold leading-tight lg:text-[32px]; }
-  .h3 { @apply font-head text-[22px] font-semibold leading-tight; }
+  .h1 { @apply font-head text-[30px] font-bold leading-[1.15] sm:text-[40px] lg:text-[48px]; }
+  .h1-sm { @apply font-head text-[28px] font-bold leading-[1.15] sm:text-[40px]; }
+  .h2 { @apply font-head text-2xl font-bold leading-tight lg:text-[32px]; }
+  .h3 { @apply font-head text-[20px] font-bold leading-tight sm:text-[22px]; }
   .overline { @apply text-xs font-medium uppercase tracking-wide text-accent; }
 
   .btn { @apply inline-flex min-h-12 items-center justify-center gap-2.5 rounded-lg border border-line bg-white px-5 py-3 text-sm font-semibold whitespace-nowrap transition hover:border-line-strong active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50; }
@@ -60,6 +61,20 @@
   .tag-muted { @apply bg-soft text-muted; }
   .tag-ok { @apply bg-ok/10 text-ok; }
   .tag-warn { @apply bg-warn/10 text-warn; }
+
+  /* статусы-«пилюли» из макета: контурная (текущий этап) и спокойная */
+  .pill { @apply inline-flex items-center rounded-full border border-accent px-2.5 py-[5px] text-[13px] leading-none whitespace-nowrap text-accent; }
+  .pill-soft { @apply border-line bg-[#faf8f7] text-muted; }
+  .pill-fill { @apply border-transparent bg-pink text-accent; }
+
+  .switch { @apply relative inline-flex h-6 w-10 shrink-0 cursor-pointer items-center rounded-full bg-[#ebe4e1] transition; }
+  .switch[aria-checked='true'] { @apply bg-accent; }
+  .switch > span { @apply absolute left-[3px] size-[18px] rounded-full bg-white shadow-sm transition-transform; }
+  .switch[aria-checked='true'] > span { @apply translate-x-4; }
+
+  .table-x { @apply w-full border-separate border-spacing-0 overflow-hidden rounded-card border border-line text-left text-sm; }
+  .table-x th { @apply bg-[#faf8f7] px-4 py-3.5 text-[13px] font-semibold text-muted; }
+  .table-x td { @apply border-t border-line px-4 py-3.5 align-top; }
 
   .kv { @apply flex justify-between gap-4 py-1.5 text-sm; }
   .kv > :last-child { @apply text-right font-semibold; }
