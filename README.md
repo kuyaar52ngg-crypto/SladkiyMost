@@ -2,8 +2,6 @@
 
 **Демо:** https://sladkiy-most.vercel.app
 
-**Запуск локально:** `docker compose up --build` 
-
 ## Стек
 
 | Слой | Технологии |
