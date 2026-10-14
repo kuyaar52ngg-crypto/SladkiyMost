@@ -98,6 +98,14 @@ def require_user(user: User | None = Depends(current_user)) -> User:
     return user
 
 
+def require_seller(user: User | None = Depends(current_user)) -> User:
+    if not user:
+        raise Unauthorized("Войдите в кабинет магазина")
+    if user.role != Role.SELLER or user.shop_id is None:
+        raise Forbidden("Нужен аккаунт поставщика")
+    return user
+
+
 def require_admin(user: User | None = Depends(current_user)) -> User:
     if not user:
         raise Unauthorized("Нужен вход администратора")

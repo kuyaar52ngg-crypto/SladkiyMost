@@ -9,12 +9,15 @@ from html import escape
 
 from app.domain.entities import (
     ORDER_STATUS_TITLES,
+    PREP_TITLES,
     TICKET_STATUS_TITLES,
     WAVE_STATUS_TITLES,
     Notification,
     NotificationKind,
     Order,
     OrderStatus,
+    PrepStatus,
+    Shop,
     Ticket,
     User,
     Wave,
@@ -69,6 +72,7 @@ def order_placed(uow: UnitOfWork, notifier: Notifier, o: Order, site_url: str) -
                  f"🆕 <b>Новый заказ {o.code}</b> · {kind}\n{escape(o.direction.title)}\n{_items(o)}\n"
                  f"Сумма: <b>{_rub(o.total_rub)}</b>\nПокупатель: {escape(o.customer_name)}, "
                  f"{escape(o.customer_phone)}\nПолучатель: {escape(o.recipient.name)}, {escape(o.recipient.city)}")
+    _notify_shops(uow, notifier, o, site_url)
     _deliver(uow, notifier, _customer(uow, o), NotificationKind.ORDER, f"Заказ {o.code} принят",
              f"{_items_short(o)}. Сумма {_rub(o.total_rub)}. Сообщим о каждом этапе доставки.",
              f"{site_url}/account/orders/{o.code}",
@@ -147,4 +151,26 @@ def ticket_updated(uow: UnitOfWork, notifier: Notifier, t: Ticket, site_url: str
         for admin in _admins(uow):
             _deliver(uow, notifier, admin, NotificationKind.SUPPORT, f"Новое сообщение в обращении {t.code}",
                      last[:200], f"{site_url}/admin/customers?ticket={t.number}")
+    uow.commit()
+
+
+def _notify_shops(uow: UnitOfWork, notifier: Notifier, o: Order, site_url: str) -> None:
+    """Поставщикам — только их позиции заказа."""
+    products = uow.products.get_many([i.product_id for i in o.items])
+    by_shop: dict[int, list[str]] = {}
+    for i in o.items:
+        p = products.get(i.product_id)
+        if p and p.shop_id is not None:
+            by_shop.setdefault(p.shop_id, []).append(f"{i.name} × {i.qty}")
+    for shop_id, lines in by_shop.items():
+        for seller in uow.users.of_shop(shop_id):
+            _deliver(uow, notifier, seller, NotificationKind.ORDER, f"Новый заказ {o.code}",
+                     f"{', '.join(lines)} · {o.direction.title}. Подтвердите наличие в кабинете магазина.",
+                     f"{site_url}/seller/orders/{o.code}")
+
+
+def prep_changed(uow: UnitOfWork, notifier: Notifier, shop: Shop, o: Order, status: PrepStatus, site_url: str) -> None:
+    for admin in _admins(uow):
+        _deliver(uow, notifier, admin, NotificationKind.ORDER, f"{o.code}: {shop.name} — {PREP_TITLES[status].lower()}",
+                 f"Подготовка позиций магазина «{shop.name}» в заказе {o.code}.", f"{site_url}/admin/orders/{o.code}")
     uow.commit()

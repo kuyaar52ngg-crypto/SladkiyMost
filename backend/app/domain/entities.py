@@ -124,6 +124,8 @@ class Product:
     active: bool = True
     photos: list[str] = field(default_factory=list)  # галерея; первое фото — обложка (photo)
     created_at: datetime | None = None
+    shop_id: int | None = None      # магазин-поставщик; None — товар площадки
+    review: bool = False            # отправлен поставщиком на публикацию, ждёт проверки
 
 
 @dataclass(frozen=True)
@@ -230,6 +232,64 @@ class Order:
 class Role(StrEnum):
     ADMIN = "admin"
     CUSTOMER = "customer"
+    SELLER = "seller"
+
+
+class ShopStatus(StrEnum):
+    PENDING = "pending"
+    ACTIVE = "active"
+    BLOCKED = "blocked"
+
+
+SHOP_STATUS_TITLES = {ShopStatus.PENDING: "На проверке", ShopStatus.ACTIVE: "Активен", ShopStatus.BLOCKED: "Приостановлен"}
+
+
+@dataclass
+class Shop:
+    """Магазин-поставщик: свои товары, подготовка своих позиций в заказах."""
+    id: int | None
+    name: str
+    region: Region
+    description: str = ""
+    contact_name: str = ""
+    phone: str = ""
+    email: str = ""
+    photo: str = ""
+    storage: str = ""               # условия изготовления и хранения
+    status: ShopStatus = ShopStatus.ACTIVE
+    created_at: datetime | None = None
+
+
+class PrepStatus(StrEnum):
+    NEW = "new"
+    CONFIRMED = "confirmed"
+    PREPARING = "preparing"
+    READY = "ready"
+    HANDED = "handed"
+    DONE = "done"
+
+
+PREP_FLOW = [PrepStatus.NEW, PrepStatus.CONFIRMED, PrepStatus.PREPARING, PrepStatus.READY, PrepStatus.HANDED, PrepStatus.DONE]
+PREP_TITLES = {
+    PrepStatus.NEW: "Новый заказ", PrepStatus.CONFIRMED: "Подтверждён", PrepStatus.PREPARING: "Готовится",
+    PrepStatus.READY: "Готов к передаче", PrepStatus.HANDED: "Передан в доставку", PrepStatus.DONE: "Завершён",
+}
+
+
+@dataclass
+class PrepEvent:
+    status: PrepStatus
+    at: datetime
+    note: str = ""
+
+
+@dataclass
+class ShopOrder:
+    """Подготовка позиций магазина в заказе покупателя."""
+    order_number: int
+    shop_id: int
+    status: PrepStatus = PrepStatus.NEW
+    history: list[PrepEvent] = field(default_factory=list)
 
 
 @dataclass
@@ -246,6 +306,7 @@ class User:
     locked_until: datetime | None = None
     created_at: datetime | None = None
     region: Region | None = None          # регион получения по умолчанию
+    shop_id: int | None = None            # для роли seller — его магазин
     notify_orders: bool = True            # каналы уведомлений (Telegram); в кабинете лента — всегда
     notify_waves: bool = True
     notify_support: bool = True

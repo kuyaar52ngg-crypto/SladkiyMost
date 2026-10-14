@@ -8,7 +8,19 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Protocol, Sequence
 
-from app.domain.entities import Address, Direction, Notification, Order, OrderStatus, Product, Ticket, User, Wave
+from app.domain.entities import (
+    Address,
+    Direction,
+    Notification,
+    Order,
+    OrderStatus,
+    Product,
+    Shop,
+    ShopOrder,
+    Ticket,
+    User,
+    Wave,
+)
 
 
 @dataclass(frozen=True)
@@ -19,6 +31,7 @@ class ProductFilter:
     min_price: int | None = None
     max_price: int | None = None
     include_inactive: bool = False
+    shop_id: int | None = None
 
 
 class ProductRepository(Protocol):
@@ -60,6 +73,7 @@ class UserRepository(Protocol):
         ...
     def admins(self) -> list[User]: ...
     def customers(self) -> list[User]: ...
+    def of_shop(self, shop_id: int) -> list[User]: ...
     def add(self, user: User) -> None:
         """Сохраняет нового пользователя и проставляет ему id."""
         ...
@@ -91,6 +105,20 @@ class TicketRepository(Protocol):
     def list(self, user_id: int | None = None) -> list[Ticket]: ...
 
 
+class ShopRepository(Protocol):
+    def get(self, shop_id: int) -> Shop | None: ...
+    def list(self) -> list[Shop]: ...
+    def add(self, s: Shop) -> None: ...
+    def save(self, s: Shop) -> None: ...
+
+
+class ShopOrderRepository(Protocol):
+    def get(self, order_number: int, shop_id: int) -> ShopOrder | None: ...
+    def of_shop(self, shop_id: int) -> list[ShopOrder]: ...
+    def of_order(self, order_number: int) -> list[ShopOrder]: ...
+    def save(self, s: ShopOrder) -> None: ...
+
+
 class UnitOfWork(Protocol):
     products: ProductRepository
     waves: WaveRepository
@@ -99,6 +127,8 @@ class UnitOfWork(Protocol):
     addresses: AddressRepository
     notifications: NotificationRepository
     tickets: TicketRepository
+    shops: ShopRepository
+    shop_orders: ShopOrderRepository
 
     def __enter__(self) -> "UnitOfWork": ...
     def __exit__(self, *exc) -> None: ...

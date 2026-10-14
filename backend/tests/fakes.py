@@ -18,6 +18,8 @@ class MemProducts:
             out = [p for p in out if p.region.value in f.regions]
         if f.categories:
             out = [p for p in out if p.category in f.categories]
+        if f.shop_id is not None:
+            out = [p for p in out if p.shop_id == f.shop_id]
         if f.query:
             out = [p for p in out if f.query.lower() in (p.name + p.description).lower()]
         return [copy.deepcopy(p) for p in out]
@@ -116,6 +118,9 @@ class MemUsers:
     def admins(self):
         return [copy.deepcopy(u) for u in self.data.values() if u.role == Role.ADMIN]
 
+    def of_shop(self, shop_id):
+        return [copy.deepcopy(u) for u in self.data.values() if u.shop_id == shop_id]
+
     def customers(self):
         return [copy.deepcopy(u) for u in self.data.values() if u.role == Role.CUSTOMER]
 
@@ -211,6 +216,43 @@ class MemTickets:
                 if user_id is None or t.user_id == user_id]
 
 
+class MemShops:
+    def __init__(self):
+        self.data, self.seq = {}, itertools.count(1)
+
+    def get(self, sid):
+        return copy.deepcopy(self.data.get(sid))
+
+    def list(self):
+        return [copy.deepcopy(s) for s in self.data.values()]
+
+    def add(self, s):
+        s.id = next(self.seq)
+        self.data[s.id] = copy.deepcopy(s)
+
+    def save(self, s):
+        if s.id is None:
+            return self.add(s)
+        self.data[s.id] = copy.deepcopy(s)
+
+
+class MemShopOrders:
+    def __init__(self):
+        self.data = {}
+
+    def get(self, n, sid):
+        return copy.deepcopy(self.data.get((n, sid)))
+
+    def of_shop(self, sid):
+        return [copy.deepcopy(v) for (n, s), v in self.data.items() if s == sid]
+
+    def of_order(self, n):
+        return [copy.deepcopy(v) for (o, s), v in self.data.items() if o == n]
+
+    def save(self, so):
+        self.data[(so.order_number, so.shop_id)] = copy.deepcopy(so)
+
+
 class MemUow:
     def __init__(self):
         self.products = MemProducts()
@@ -220,6 +262,8 @@ class MemUow:
         self.addresses = MemAddresses()
         self.notifications = MemNotifications()
         self.tickets = MemTickets()
+        self.shops = MemShops()
+        self.shop_orders = MemShopOrders()
         self.commits = 0
 
     def __enter__(self):

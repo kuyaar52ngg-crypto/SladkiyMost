@@ -10,6 +10,8 @@ from app.application.waves import WaveOffer, WaveView
 from app.domain import logistics as L
 from app.domain.entities import (
     ORDER_STATUS_TITLES,
+    PREP_TITLES,
+    SHOP_STATUS_TITLES,
     TICKET_STATUS_TITLES,
     WAVE_STATUS_TITLES,
     Address,
@@ -18,7 +20,10 @@ from app.domain.entities import (
     OrderStatus,
     Product,
     ReceiveMethod,
+    PrepStatus,
     Region,
+    Shop,
+    ShopStatus,
     Ticket,
     TicketStatus,
     User,
@@ -141,6 +146,8 @@ class ProductOut(BaseModel):
     tag: str
     active: bool
     photos: list[str]
+    shop_id: int | None = None
+    review: bool = False
 
     @classmethod
     def of(cls, p: Product) -> "ProductOut":
@@ -169,13 +176,15 @@ class UserOut(BaseModel):
     notify_support: bool = True
     notify_news: bool = False
     gift_draft: dict | None = None
+    shop_id: int | None = None
     token: str | None = None  # только для Telegram Mini App: сессия заголовком, если cookie недоступна
 
     @classmethod
     def of(cls, u: User) -> "UserOut":
         return cls(id=u.id, role=u.role.value, name=u.name, phone=u.phone, email=u.email, telegram=bool(u.tg_chat_id),
                    region=u.region, notify_orders=u.notify_orders, notify_waves=u.notify_waves,
-                   notify_support=u.notify_support, notify_news=u.notify_news, gift_draft=u.gift_draft)
+                   notify_support=u.notify_support, notify_news=u.notify_news, gift_draft=u.gift_draft,
+                   shop_id=u.shop_id)
 
 
 # ---------------- личный кабинет ----------------
@@ -507,3 +516,80 @@ class StatsOut(BaseModel):
                    counter=[CounterOut(direction=c.direction.value, title=c.direction.title,
                                        wave=WaveOut.of(c.wave) if c.wave else None, forecast_kg=c.forecast_kg)
                             for c in s.counter])
+
+
+
+# ---------------- поставщики ----------------
+class ShopIn(BaseModel):
+    name: str = Field(max_length=120)
+    region: Region
+    description: str = Field("", max_length=2000)
+    contact_name: str = Field("", max_length=120)
+    phone: str = Field("", max_length=40)
+    email: str = Field("", max_length=160)
+    photo: str = Field("", max_length=500)
+    storage: str = Field("", max_length=2000)
+
+
+class ShopCreateIn(ShopIn):
+    login_phone: str = Field(max_length=40)
+    password: str = Field(max_length=128)
+    owner_name: str = Field("", max_length=120)
+
+
+class ShopStatusIn(BaseModel):
+    status: ShopStatus
+
+
+class ShopOut(BaseModel):
+    id: int
+    name: str
+    region: Region
+    description: str
+    contact_name: str
+    phone: str
+    email: str
+    photo: str
+    storage: str
+    status: ShopStatus
+    status_title: str
+    created_at: datetime | None
+    products: int = 0
+    published: int = 0
+    in_review: int = 0
+    orders: int = 0
+    login_phone: str = ""
+
+    @classmethod
+    def of(cls, sh: Shop, **extra) -> "ShopOut":
+        return cls(**{k: v for k, v in sh.__dict__.items()}, status_title=SHOP_STATUS_TITLES[sh.status], **extra)
+
+
+class SellerProductIn(ProductIn):
+    region: Region = Region.YKT   # подставляется регион магазина
+    submit: bool = False          # отправить на публикацию
+
+
+class ReviewIn(BaseModel):
+    approve: bool
+
+
+class PrepIn(BaseModel):
+    status: PrepStatus
+    note: str = Field("", max_length=300)
+
+
+class PrepEventOut(BaseModel):
+    status: PrepStatus
+    title: str
+    at: datetime
+    note: str
+
+
+class ShopOrderOut(BaseModel):
+    order: OrderOut
+    shop_id: int
+    shop_name: str = ""
+    prep_status: PrepStatus
+    prep_title: str
+    prep_history: list[PrepEventOut]

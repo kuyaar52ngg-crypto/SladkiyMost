@@ -23,7 +23,12 @@ from app.domain.entities import (
     ReceiveMethod,
     Recipient,
     Region,
+    PrepEvent,
+    PrepStatus,
     Role,
+    Shop,
+    ShopOrder,
+    ShopStatus,
     Ticket,
     TicketMessage,
     TicketStatus,
@@ -40,6 +45,8 @@ from .models import (
     OrderRow,
     ProductPhotoRow,
     ProductRow,
+    ShopOrderRow,
+    ShopRow,
     TicketMessageRow,
     TicketRow,
     UserRow,
@@ -48,7 +55,7 @@ from .models import (
 
 # ---------------- products ----------------
 PRODUCT_FIELDS = ("manufacturer", "name", "category", "weight_g", "price_rub", "temp_sensitive",
-                  "shelf_life_days", "photo", "description", "composition", "tag", "active")
+                  "shelf_life_days", "photo", "description", "composition", "tag", "active", "shop_id", "review")
 
 
 def _product(r: ProductRow) -> Product:
@@ -66,6 +73,8 @@ class SqlProductRepository:
             q = q.where(ProductRow.active.is_(True))
         if f.regions:
             q = q.where(ProductRow.region.in_(f.regions))
+        if f.shop_id is not None:
+            q = q.where(ProductRow.shop_id == f.shop_id)
         if f.categories:
             q = q.where(ProductRow.category.in_(f.categories))
         if f.query:
@@ -240,7 +249,7 @@ class SqlOrderRepository:
 
 # ---------------- users ----------------
 USER_FIELDS = ("phone", "name", "email", "password_hash", "tg_chat_id", "tg_link_token", "failed_logins",
-               "locked_until", "notify_orders", "notify_waves", "notify_support", "notify_news", "gift_draft")
+               "locked_until", "notify_orders", "notify_waves", "notify_support", "notify_news", "gift_draft", "shop_id")
 
 
 def _user(r: UserRow) -> User:
@@ -271,6 +280,9 @@ class SqlUserRepository:
 
     def admins(self) -> list[User]:
         return [_user(r) for r in self.s.scalars(select(UserRow).where(UserRow.role == Role.ADMIN.value))]
+
+    def of_shop(self, shop_id: int) -> list[User]:
+        return [_user(r) for r in self.s.scalars(select(UserRow).where(UserRow.shop_id == shop_id))]
 
     def customers(self) -> list[User]:
         q = select(UserRow).where(UserRow.role == Role.CUSTOMER.value).order_by(UserRow.id.desc())
@@ -414,3 +426,75 @@ class SqlTicketRepository:
         # сообщения только добавляются: дописываем новые в конец
         for m in t.messages[len(r.messages):]:
             r.messages.append(TicketMessageRow(author=m.author, name=m.name, text=m.text))
+
+
+SHOP_FIELDS = ("name", "description", "contact_name", "phone", "email", "photo", "storage")
+
+
+def _shop(r: ShopRow) -> Shop:
+    return Shop(id=r.id, region=Region(r.region), status=ShopStatus(r.status), created_at=r.created_at,
+                **{f: getattr(r, f) for f in SHOP_FIELDS})
+
+
+class SqlShopRepository:
+    def __init__(self, s: Session):
+        self.s = s
+
+    def get(self, shop_id: int) -> Shop | None:
+        r = self.s.get(ShopRow, shop_id)
+        return _shop(r) if r else None
+
+    def list(self) -> list[Shop]:
+        return [_shop(r) for r in self.s.scalars(select(ShopRow).order_by(ShopRow.id))]
+
+    def add(self, sh: Shop) -> None:
+        r = ShopRow()
+        self._fill(r, sh)
+        self.s.add(r)
+        self.s.flush()
+        sh.id, sh.created_at = r.id, r.created_at
+
+    def save(self, sh: Shop) -> None:
+        r = self.s.get(ShopRow, sh.id) if sh.id is not None else None
+        if r is None:
+            return self.add(sh)
+        self._fill(r, sh)
+        self.s.flush()
+
+    @staticmethod
+    def _fill(r: ShopRow, sh: Shop) -> None:
+        r.region, r.status = sh.region.value, sh.status.value
+        for f in SHOP_FIELDS:
+            setattr(r, f, getattr(sh, f))
+
+
+def _shop_order(r: ShopOrderRow) -> ShopOrder:
+    from datetime import datetime
+    return ShopOrder(order_number=r.order_number, shop_id=r.shop_id, status=PrepStatus(r.status),
+                     history=[PrepEvent(PrepStatus(h["status"]), datetime.fromisoformat(h["at"]), h.get("note", ""))
+                              for h in (r.history or [])])
+
+
+class SqlShopOrderRepository:
+    def __init__(self, s: Session):
+        self.s = s
+
+    def get(self, order_number: int, shop_id: int) -> ShopOrder | None:
+        r = self.s.get(ShopOrderRow, (order_number, shop_id))
+        return _shop_order(r) if r else None
+
+    def of_shop(self, shop_id: int) -> list[ShopOrder]:
+        return [_shop_order(r) for r in self.s.scalars(select(ShopOrderRow).where(ShopOrderRow.shop_id == shop_id))]
+
+    def of_order(self, order_number: int) -> list[ShopOrder]:
+        q = select(ShopOrderRow).where(ShopOrderRow.order_number == order_number)
+        return [_shop_order(r) for r in self.s.scalars(q)]
+
+    def save(self, so: ShopOrder) -> None:
+        r = self.s.get(ShopOrderRow, (so.order_number, so.shop_id))
+        if r is None:
+            r = ShopOrderRow(order_number=so.order_number, shop_id=so.shop_id)
+            self.s.add(r)
+        r.status = so.status.value
+        r.history = [{"status": h.status.value, "at": h.at.isoformat(), "note": h.note} for h in so.history]
+        self.s.flush()

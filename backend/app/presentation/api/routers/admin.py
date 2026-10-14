@@ -6,6 +6,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.application import account, analytics, catalog, orders, uploads, waves
+from app.application import sellers as Sl
 from app.application import notifications as notify
 from app.application.ports import ProductFilter, UnitOfWork
 from app.domain.entities import OrderStatus, User
@@ -50,6 +51,48 @@ def order_detail(code: str, u: UnitOfWork = Depends(uow), d: date = Depends(toda
 @router.get("/waves/{wave_id}", response_model=S.WaveOut)
 def wave_detail(wave_id: str, u: UnitOfWork = Depends(uow), d: date = Depends(today)):
     return S.WaveOut.of(waves.get_wave_view(u, d, wave_id))
+
+
+@router.get("/shops", response_model=list[S.ShopOut])
+def shops(u: UnitOfWork = Depends(uow)):
+    out = []
+    for sh in u.shops.list():
+        prods = Sl.shop_products(u, sh.id)
+        login = next((x.phone for x in u.users.of_shop(sh.id)), "")
+        out.append(S.ShopOut.of(sh, products=len(prods), published=sum(p.active for p in prods),
+                                in_review=sum(p.review for p in prods), orders=len(Sl.shop_orders(u, sh.id)),
+                                login_phone=login))
+    return out
+
+
+@router.post("/shops", response_model=S.ShopOut, status_code=201)
+def shop_create(body: S.ShopCreateIn, c: Container = Depends(container), u: UnitOfWork = Depends(uow)):
+    data = Sl.ShopData(**body.model_dump(exclude={"login_phone", "password", "owner_name"}))
+    sh, seller = Sl.create_shop(u, c.hasher, data, body.login_phone, body.password, body.owner_name)
+    return S.ShopOut.of(sh, login_phone=seller.phone)
+
+
+@router.put("/shops/{shop_id}", response_model=S.ShopOut)
+def shop_update(shop_id: int, body: S.ShopIn, u: UnitOfWork = Depends(uow)):
+    return S.ShopOut.of(Sl.update_shop(u, shop_id, Sl.ShopData(**body.model_dump())))
+
+
+@router.post("/shops/{shop_id}/status", response_model=S.ShopOut)
+def shop_status(shop_id: int, body: S.ShopStatusIn, u: UnitOfWork = Depends(uow)):
+    return S.ShopOut.of(Sl.set_shop_status(u, shop_id, body.status))
+
+
+@router.post("/products/{product_id}/review", response_model=S.ProductOut)
+def product_review(product_id: str, body: S.ReviewIn, u: UnitOfWork = Depends(uow)):
+    return S.ProductOut.of(Sl.review_product(u, product_id, body.approve))
+
+
+@router.get("/orders/{code}/shops", response_model=list[S.ShopOrderOut])
+def order_shops(code: str, u: UnitOfWork = Depends(uow), d: date = Depends(today)):
+    """Подготовка позиций заказа у каждого поставщика."""
+    from .seller import shop_order_out
+    o = orders.get_order(u, code)
+    return [shop_order_out(u, d, Sl.shop_order(u, sh.id, o.number), sh.name) for sh in Sl.shops_of_order(u, o)]
 
 
 @router.get("/customers", response_model=list[S.CustomerOut])

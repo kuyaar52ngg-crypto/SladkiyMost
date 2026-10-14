@@ -42,6 +42,8 @@ class ProductRow(Base):
     tag: Mapped[str] = mapped_column(String(40), default="")
     active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    shop_id: Mapped[int | None] = mapped_column(ForeignKey("shops.id", ondelete="SET NULL"), index=True)
+    review: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
     photos: Mapped[list["ProductPhotoRow"]] = relationship(cascade="all, delete-orphan", lazy="selectin",
                                                            order_by="ProductPhotoRow.position")
@@ -77,6 +79,32 @@ class UserRow(Base):
     notify_support: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     notify_news: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     gift_draft: Mapped[dict | None] = mapped_column(JSON)
+    shop_id: Mapped[int | None] = mapped_column(ForeignKey("shops.id", ondelete="SET NULL"), index=True)
+
+
+class ShopRow(Base):
+    __tablename__ = "shops"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(120))
+    region: Mapped[str] = mapped_column(String(3))
+    description: Mapped[str] = mapped_column(Text, default="")
+    contact_name: Mapped[str] = mapped_column(String(120), default="")
+    phone: Mapped[str] = mapped_column(String(40), default="")
+    email: Mapped[str] = mapped_column(String(160), default="")
+    photo: Mapped[str] = mapped_column(String(500), default="")
+    storage: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String(10), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ShopOrderRow(Base):
+    __tablename__ = "shop_orders"
+
+    order_number: Mapped[int] = mapped_column(ForeignKey("orders.number", ondelete="CASCADE"), primary_key=True)
+    shop_id: Mapped[int] = mapped_column(ForeignKey("shops.id", ondelete="CASCADE"), primary_key=True, index=True)
+    status: Mapped[str] = mapped_column(String(10))
+    history: Mapped[list] = mapped_column(JSON, default=list)
 
 
 class AddressRow(Base):

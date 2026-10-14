@@ -10,6 +10,8 @@ from .repositories import (
     SqlNotificationRepository,
     SqlOrderRepository,
     SqlProductRepository,
+    SqlShopOrderRepository,
+    SqlShopRepository,
     SqlTicketRepository,
     SqlUserRepository,
     SqlWaveRepository,
@@ -39,6 +41,8 @@ class SqlUnitOfWork:
         self.addresses = SqlAddressRepository(self.session)
         self.notifications = SqlNotificationRepository(self.session)
         self.tickets = SqlTicketRepository(self.session)
+        self.shops = SqlShopRepository(self.session)
+        self.shop_orders = SqlShopOrderRepository(self.session)
         return self
 
     def __exit__(self, *exc) -> None:

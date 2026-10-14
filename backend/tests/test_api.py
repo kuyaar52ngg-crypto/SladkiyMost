@@ -182,3 +182,34 @@ def test_cabinet_api(app):
     assert any(c["name"] == "Вера" for c in admin.get("/api/admin/customers").json())
     assert client(app).get("/api/account/addresses").status_code == 401
     assert me.get("/api/admin/customers").status_code == 403
+
+
+def test_seller_api(app):
+    admin, seller, buyer = client(app), client(app), client(app)
+    admin.post("/api/auth/login", json=ADMIN)
+    r = admin.post("/api/admin/shops", json={"name": "Тёплая кондитерская", "region": "DNR", "login_phone": "+7 (949) 700-10-10",
+                                             "password": "seller-pass", "owner_name": "Ирина"})
+    assert r.status_code == 201, r.text
+    assert seller.post("/api/auth/login", json={"phone": "+7 (949) 700-10-10", "password": "seller-pass"}).json()["role"] == "seller"
+    assert seller.get("/api/admin/stats").status_code == 403 and buyer.get("/api/seller/shop").status_code == 401
+    body = {"name": "Пряник донецкий", "category": "Печенье и вафли", "weight_g": 300, "price_rub": 350,
+            "photos": ["https://cdn.test/p.jpg"], "submit": True}
+    p = seller.post("/api/seller/products", json=body).json()
+    assert p["region"] == "DNR" and p["review"] and not p["active"]
+    assert all(x["id"] != p["id"] for x in buyer.get("/api/products").json())          # до проверки не на витрине
+    assert admin.post(f"/api/admin/products/{p['id']}/review", json={"approve": True}).json()["active"]
+    shop_row = [s for s in admin.get("/api/admin/shops").json() if s["name"] == "Тёплая кондитерская"][0]
+    assert shop_row["published"] == 1 and shop_row["login_phone"] == "+7 (949) 700-10-10"
+
+    wave = buyer.post("/api/waves/offers", json={"items": [{"id": p["id"], "qty": 1}]}).json()[0]["wave"]
+    o = buyer.post("/api/orders", json={"items": [{"id": p["id"], "qty": 1}], "wave_id": wave["id"], "customer_name": "Пётр",
+                                        "customer_phone": "+7 (949) 111-00-00", "recipient_name": "Пётр",
+                                        "recipient_phone": "+7 (914) 111-00-00", "pickup_point": "Якутск", "consent": True})
+    assert o.status_code == 201, o.text
+    code = o.json()["code"]
+    mine = seller.get("/api/seller/orders").json()
+    assert mine[0]["order"]["code"] == code and mine[0]["order"]["customer_phone"] == "" and mine[0]["prep_status"] == "new"
+    r = seller.post(f"/api/seller/orders/{code}/prep", json={"status": "confirmed", "note": "Есть в наличии"})
+    assert r.json()["prep_title"] == "Подтверждён"
+    assert admin.get(f"/api/admin/orders/{code}/shops").json()[0]["prep_status"] == "confirmed"
+    assert len(seller.get("/api/seller/waves").json()) == 1
