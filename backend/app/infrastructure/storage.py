@@ -17,10 +17,16 @@ class SupabaseStorage:
     def __init__(self, url: str, service_key: str, bucket: str = "products"):
         self.url, self.key, self.bucket = url.rstrip("/"), service_key, bucket
 
+    def _headers(self) -> dict[str, str]:
+        # Новые ключи (sb_secret_…) передаются только в apikey, старые JWT-ключи — ещё и как Bearer.
+        if self.key.startswith("sb_"):
+            return {"apikey": self.key}
+        return {"Authorization": f"Bearer {self.key}", "apikey": self.key}
+
     def signed_upload(self, path: str, content_type: str) -> SignedUpload:
         try:
             r = httpx.post(f"{self.url}/storage/v1/object/upload/sign/{self.bucket}/{path}",
-                           headers={"Authorization": f"Bearer {self.key}", "apikey": self.key}, json={}, timeout=10)
+                           headers=self._headers(), json={}, timeout=10)
             r.raise_for_status()
             signed = r.json()["url"]
         except (httpx.HTTPError, KeyError, ValueError) as e:
