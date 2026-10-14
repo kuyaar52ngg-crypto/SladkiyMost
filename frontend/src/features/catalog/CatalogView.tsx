@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { other, useShop } from '@/features/shop/store';
 import type { Product, RegionId } from '@/shared/api/types';
 import { cn, plural } from '@/shared/lib/format';
-import { Icon, Note } from '@/shared/ui';
+import { Empty, Icon, Note } from '@/shared/ui';
 import { ProductCard } from '@/widgets/ProductCard';
 
 interface Filters { region: string[]; category: string[]; q: string; min: string; max: string; sort: string }
@@ -77,8 +77,8 @@ export function CatalogView({ products, popularOrder, initial }: { products: Pro
           </fieldset>
           <fieldset className="mb-5.5"><legend className="mb-2.5 text-sm font-semibold">Цена, ₽</legend>
             <div className="grid grid-cols-2 gap-2">
-              <label className="field"><span className="hint">От</span><input className="input" inputMode="numeric" placeholder={String(Math.min(...prices))} value={f.min} onChange={(e) => setF({ ...f, min: e.target.value.replace(/\D/g, '') })} /></label>
-              <label className="field"><span className="hint">До</span><input className="input" inputMode="numeric" placeholder={String(Math.max(...prices))} value={f.max} onChange={(e) => setF({ ...f, max: e.target.value.replace(/\D/g, '') })} /></label>
+              <label className="field"><span className="hint">От</span><input className="input" inputMode="numeric" placeholder={prices.length ? String(Math.min(...prices)) : ''} value={f.min} onChange={(e) => setF({ ...f, min: e.target.value.replace(/\D/g, '') })} /></label>
+              <label className="field"><span className="hint">До</span><input className="input" inputMode="numeric" placeholder={prices.length ? String(Math.max(...prices)) : ''} value={f.max} onChange={(e) => setF({ ...f, max: e.target.value.replace(/\D/g, '') })} /></label>
             </div>
           </fieldset>
           <button className="btn w-full" onClick={reset}>Сбросить фильтры</button>
@@ -99,10 +99,12 @@ export function CatalogView({ products, popularOrder, initial }: { products: Pro
           </div>
           {list.length ? (
             <div className="grid grid-cols-2 gap-x-3 gap-y-5 lg:grid-cols-3 lg:gap-x-4.5 lg:gap-y-6">{list.map((p) => <ProductCard key={p.id} p={p} />)}</div>
+          ) : !products.length ? (
+            <Empty title="Скоро здесь появятся сладости" text="Мы уже собираем ассортимент Якутии и Донбасса. Загляните чуть позже." />
           ) : (
             <div className="py-14 text-center"><h3 className="h3 mb-2.5">Ничего не нашлось</h3><p className="text-muted">Попробуйте изменить фильтры или поисковый запрос.</p><button className="btn mt-4" onClick={reset}>Сбросить фильтры</button></div>
           )}
-          <Note className="mt-8">Ассортимент, цены и фотографии — пример для MVP. Фактическое наличие, состав и сроки годности подтверждаются перед оплатой.</Note>
+          <Note className="mt-8">Фактическое наличие, состав и сроки годности подтверждаются перед отправкой партии.</Note>
         </div>
       </div>
     </>

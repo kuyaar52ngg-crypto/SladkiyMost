@@ -4,6 +4,7 @@ import { cn } from '@/shared/lib/format';
 import { Icon } from './Icon';
 
 export { Icon };
+export { Photo } from './Photo';
 
 export function Note({ children, kind, className }: { children: ReactNode; kind?: 'warn' | 'ok'; className?: string }) {
   const tone = kind === 'warn' ? 'bg-warn/10 text-warn' : kind === 'ok' ? 'bg-ok/10 text-ok' : 'bg-pink text-accent';

@@ -1,14 +1,13 @@
 'use client';
-import Image from 'next/image';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useShop } from '@/features/shop/store';
-import { get, post, put } from '@/shared/api/client';
+import { ImageUploader } from '@/features/upload/ImageUploader';
+import { del, get, post, put } from '@/shared/api/client';
 import type { Product, RegionId } from '@/shared/api/types';
 import { rub } from '@/shared/lib/format';
-import { Icon } from '@/shared/ui';
+import { Empty, Icon, Photo } from '@/shared/ui';
 
-const PHOTOS = ['zephyr', 'truffles', 'cookies', 'marmalade', 'wafers', 'cedar', 'gift', 'yakutia', 'hero'];
-type Draft = Omit<Product, 'id'> & { id?: string };
+type Draft = Omit<Product, 'id' | 'photo'> & { id?: string };
 
 export default function ProductsAdmin() {
   const { meta, toast } = useShop();
@@ -18,11 +17,12 @@ export default function ProductsAdmin() {
   const load = useCallback(() => get<Product[]>('/api/admin/products').then(setList), []);
   useEffect(() => { load(); }, [load]);
 
-  const blank: Draft = { name: '', region: 'YKT', manufacturer: '', category: meta.categories[0], weight_g: 200, price_rub: 300, temp_sensitive: false, shelf_life_days: 30, photo: '/img/gift.jpg', description: '', composition: '', tag: '', active: true };
+  const blank: Draft = { name: '', region: 'YKT', manufacturer: '', category: meta.categories[0], weight_g: 200, price_rub: 300, temp_sensitive: false, shelf_life_days: 30, photos: [], description: '', composition: '', tag: '', active: true };
   const save = async (e: FormEvent) => {
     e.preventDefault();
     if (!edit) return;
     const { id, ...body } = edit;
+    if (!body.photos.length) { setErr('Добавьте хотя бы одно фото'); return; }
     try {
       await (id ? put(`/api/admin/products/${id}`, body) : post('/api/admin/products', body));
       setEdit(null); setErr(''); toast('Товар сохранён'); load();
@@ -32,6 +32,14 @@ export default function ProductsAdmin() {
     await post(`/api/admin/products/${p.id}/active`, { active });
     toast(active ? 'Товар снова в каталоге' : 'Товар скрыт из каталога'); load();
   };
+  const remove = async (p: Product) => {
+    if (!confirm(`Удалить «${p.name}»? Если по товару уже есть заказы, он будет только скрыт.`)) return;
+    try {
+      const r = await del<{ deleted: boolean }>(`/api/admin/products/${p.id}`);
+      toast(r.deleted ? 'Товар удалён' : 'По товару есть заказы — товар скрыт из каталога'); load();
+    } catch (ex) { toast((ex as Error).message); }
+  };
+  const open = (p: Product) => setEdit({ ...p, photos: p.photos.length ? p.photos : [p.photo] });
   if (!list) return <p className="text-muted">Загружаем…</p>;
   const f = <K extends keyof Draft>(k: K, v: Draft[K]) => setEdit((x) => (x ? { ...x, [k]: v } : x));
 
@@ -41,22 +49,23 @@ export default function ProductsAdmin() {
         <p className="text-[13px] text-muted">{list.filter((p) => p.active).length} активных · {list.length} всего</p>
         <button className="btn btn-primary" onClick={() => setEdit(blank)}><Icon name="box" className="size-4" />Добавить товар</button>
       </div>
+      {!list.length ? <Empty title="Товаров пока нет" text="Добавьте первую сладость — она сразу появится в каталоге и на главной." /> : (
       <div className="overflow-x-auto rounded-card border border-line">
         <table className="w-full min-w-[900px] text-sm">
           <thead className="bg-soft text-left text-[13px]"><tr>{['', 'Артикул', 'Название', 'Регион', 'Категория', 'Масса', 'Цена', 'Термо', ''].map((h, i) => <th key={i} className="px-4 py-3.5 font-semibold">{h}</th>)}</tr></thead>
           <tbody>{list.map((p) => (
             <tr key={p.id} className={`border-t border-line [&>td]:px-4 [&>td]:py-3 ${p.active ? '' : 'opacity-50'}`}>
-              <td><div className="relative h-10.5 w-12 overflow-hidden rounded-md"><Image src={p.photo} alt="" fill sizes="48px" className="object-cover" /></div></td>
+              <td><div className="relative h-10.5 w-12 overflow-hidden rounded-md bg-soft"><Photo src={p.photo} alt="" sizes="48px" /></div></td>
               <td className="text-[13px]">{p.id}</td>
               <td><b className="text-[13px]">{p.name}</b><div className="text-xs text-muted">{p.manufacturer}</div></td>
               <td>{meta.regions[p.region].name}</td><td className="text-[13px]">{p.category}</td>
               <td className="whitespace-nowrap">{p.weight_g} г</td><td className="whitespace-nowrap">{rub(p.price_rub)}</td>
               <td>{p.temp_sensitive ? <span className="tag tag-warn">да</span> : 'нет'}</td>
-              <td className="whitespace-nowrap"><button className="btn btn-sm" onClick={() => setEdit(p)}>Изменить</button> <button className="btn btn-sm btn-ghost" onClick={() => setActive(p, !p.active)}>{p.active ? 'Скрыть' : 'Вернуть'}</button></td>
+              <td className="whitespace-nowrap"><button className="btn btn-sm" onClick={() => open(p)}>Изменить</button> <button className="btn btn-sm btn-ghost" onClick={() => setActive(p, !p.active)}>{p.active ? 'Скрыть' : 'Вернуть'}</button> <button className="btn btn-sm btn-ghost text-accent" onClick={() => remove(p)}>Удалить</button></td>
             </tr>
           ))}</tbody>
         </table>
-      </div>
+      </div>)}
       {edit && (
         <div className="fixed inset-0 z-[100] grid place-items-center bg-ink/35 p-4" onClick={(e) => e.target === e.currentTarget && setEdit(null)}>
           <form onSubmit={save} role="dialog" aria-modal="true" className="max-h-[90vh] w-full max-w-[640px] space-y-3 overflow-auto rounded-card bg-white p-6">
@@ -71,8 +80,8 @@ export default function ProductsAdmin() {
               <label className="field"><span className="label">Масса нетто, г *</span><input className="input" type="number" min={1} required value={edit.weight_g} onChange={(e) => f('weight_g', Number(e.target.value))} /></label>
               <label className="field"><span className="label">Цена, ₽ *</span><input className="input" type="number" min={1} required value={edit.price_rub} onChange={(e) => f('price_rub', Number(e.target.value))} /></label>
               <label className="field"><span className="label">Срок годности, сут</span><input className="input" type="number" min={1} value={edit.shelf_life_days} onChange={(e) => f('shelf_life_days', Number(e.target.value))} /></label>
-              <label className="field"><span className="label">Фото</span><select className="select" value={edit.photo} onChange={(e) => f('photo', e.target.value)}>{PHOTOS.map((x) => <option key={x} value={`/img/${x}.jpg`}>{x}.jpg</option>)}</select></label>
             </div>
+            <ImageUploader value={edit.photos} onChange={(v) => f('photos', v)} />
             <label className="field"><span className="label">Метка</span><input className="input" placeholder="Например: Хит" value={edit.tag} onChange={(e) => f('tag', e.target.value)} /></label>
             <label className="field"><span className="label">Описание</span><textarea className="input min-h-20" value={edit.description} onChange={(e) => f('description', e.target.value)} /></label>
             <label className="field"><span className="label">Состав</span><textarea className="input min-h-20" value={edit.composition} onChange={(e) => f('composition', e.target.value)} /></label>

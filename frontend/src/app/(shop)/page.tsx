@@ -3,21 +3,18 @@ import Link from 'next/link';
 import { get, post } from '@/shared/api/client';
 import type { Meta, Product, QuoteResponse, Wave } from '@/shared/api/types';
 import { fmtDate, kg, rub } from '@/shared/lib/format';
-import { Icon } from '@/shared/ui';
+import { Empty, Icon } from '@/shared/ui';
 import { ProductCard } from '@/widgets/ProductCard';
 import { WaveSummary } from '@/widgets/WaveSummary';
 
-const POPULAR = ['YKT-001', 'DNR-001', 'DNR-002', 'YKT-003'];
-
 export default async function Home() {
   const [meta, products, waves] = await Promise.all([
-    get<Meta>('/api/meta'), get<Product[]>('/api/products'), get<Wave[]>('/api/waves?only_open=true'),
+    get<Meta>('/api/meta'), get<Product[]>('/api/products?sort=new&limit=8'), get<Wave[]>('/api/waves?only_open=true'),
   ]);
   const p = meta.policy;
   const next = (['YKT-DNR', 'DNR-YKT'] as const).map((d) => waves.find((w) => w.direction === d)).filter((w): w is Wave => !!w);
   const sample = [...next].sort((a, b) => a.rate - b.rate)[0];
   const est = sample ? await post<QuoteResponse>('/api/quote/estimate', { wave_id: sample.id, weight_kg: 1 }) : null;
-  const popular = POPULAR.map((id) => products.find((x) => x.id === id)).filter((x): x is Product => !!x);
 
   return (
     <>
@@ -76,7 +73,9 @@ export default async function Home() {
           <h2 className="h2">Начните с чего-нибудь любимого</h2>
           <Link className="btn btn-sm max-sm:w-full" href="/catalog">Весь каталог <Icon name="arrow" className="size-4" /></Link>
         </div>
-        <div className="grid grid-cols-2 gap-x-3 gap-y-5 md:grid-cols-4 md:gap-x-4.5 md:gap-y-6">{popular.map((x) => <ProductCard key={x.id} p={x} />)}</div>
+        {products.length
+          ? <div className="grid grid-cols-2 gap-x-3 gap-y-5 md:grid-cols-4 md:gap-x-4.5 md:gap-y-6">{products.map((x) => <ProductCard key={x.id} p={x} />)}</div>
+          : <Empty title="Скоро здесь появятся сладости" text="Мы уже собираем ассортимент Якутии и Донбасса. Загляните чуть позже." />}
       </section>
 
       <section className="bg-soft py-10 md:py-14">

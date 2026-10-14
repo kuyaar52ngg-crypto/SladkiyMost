@@ -1,8 +1,7 @@
-import Image from 'next/image';
 import Link from 'next/link';
 import type { Order } from '@/shared/api/types';
 import { cn, fmtDate, fmtRange, rub } from '@/shared/lib/format';
-import { Icon, Note } from '@/shared/ui';
+import { Icon, Note, Photo } from '@/shared/ui';
 
 const FLOW = [['accepted', 'Принят'], ['assembling', 'В сборке'], ['transit', 'В пути'], ['pickup', 'На пункте выдачи'], ['received', 'Получен']] as const;
 
@@ -44,7 +43,7 @@ export function OrderCard({ o, compact = true }: { o: Order; compact?: boolean }
       <Track o={o} />
       {o.items.map((i) => (
         <div key={i.id} className="grid grid-cols-[56px_1fr_auto] items-center gap-3.5 border-b border-line py-2.5">
-          <div className="relative h-[52px] overflow-hidden rounded-lg"><Image src={i.photo} alt="" fill sizes="56px" className="object-cover" /></div>
+          <div className="relative h-[52px] overflow-hidden rounded-lg bg-soft"><Photo src={i.photo} alt="" sizes="56px" /></div>
           <div><b className="text-[13px]">{i.name}</b><p className="text-xs text-muted">{i.weight_g} г · {i.qty} шт.</p></div>
           <b className="text-[13px]">{rub(i.price_rub * i.qty)}</b>
         </div>

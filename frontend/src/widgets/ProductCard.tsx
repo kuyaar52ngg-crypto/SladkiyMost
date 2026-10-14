@@ -1,10 +1,9 @@
 'use client';
-import Image from 'next/image';
 import Link from 'next/link';
 import { useShop } from '@/features/shop/store';
 import type { Product } from '@/shared/api/types';
 import { rub } from '@/shared/lib/format';
-import { Icon } from '@/shared/ui';
+import { Icon, Photo } from '@/shared/ui';
 
 export function ProductCard({ p }: { p: Product }) {
   const { add, toggleFav, favs, cart, toast, meta } = useShop();
@@ -13,8 +12,8 @@ export function ProductCard({ p }: { p: Product }) {
   return (
     <article className="group flex flex-col gap-2.5">
       <div className="relative aspect-[282/246] overflow-hidden rounded-card bg-soft">
-        <Link href={`/product/${p.id}`} aria-label={p.name}>
-          <Image src={p.photo} alt={p.name} fill sizes="(max-width: 768px) 50vw, 25vw" className="object-cover transition duration-500 group-hover:scale-105" />
+        <Link href={`/product/${p.id}`} aria-label={p.name} className="absolute inset-0">
+          <Photo src={p.photo} alt={p.name} sizes="(max-width: 768px) 50vw, 25vw" className="transition duration-500 group-hover:scale-105" />
         </Link>
         {p.tag && <span className="absolute top-3 left-3 rounded-full bg-white/90 px-2.5 py-1 text-[13px] font-medium text-accent">{p.tag}</span>}
         <button aria-label={fav ? 'Убрать из избранного' : 'В избранное'} aria-pressed={fav}

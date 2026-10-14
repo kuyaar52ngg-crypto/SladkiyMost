@@ -8,7 +8,7 @@ export type ReceiveMethod = 'pickup' | 'courier';
 export interface Product {
   id: string; region: RegionId; manufacturer: string; name: string; category: string;
   weight_g: number; price_rub: number; temp_sensitive: boolean; shelf_life_days: number;
-  photo: string; description: string; composition: string; tag: string; active: boolean;
+  photo: string; photos: string[]; description: string; composition: string; tag: string; active: boolean;
 }
 
 export interface Wave {
@@ -65,3 +65,6 @@ export interface Stats {
   by_status: Record<OrderStatus, number>;
   counter: { direction: DirectionId; title: string; wave: Wave | null; forecast_kg: number | null }[];
 }
+
+export interface User { id: number; role: 'admin' | 'customer'; name: string; phone: string; email: string | null; telegram: boolean }
+export interface SignedUpload { upload_url: string; public_url: string }

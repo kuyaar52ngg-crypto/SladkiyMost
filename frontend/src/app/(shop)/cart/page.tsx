@@ -1,12 +1,11 @@
 'use client';
-import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Layout, Loading, Summary } from '@/features/checkout/common';
 import { cartFor, goods, netKg, other, useShop } from '@/features/shop/store';
 import type { RegionId } from '@/shared/api/types';
 import { kg, rub } from '@/shared/lib/format';
-import { Crumbs, Empty, Icon, Note, PageHead, Steps } from '@/shared/ui';
+import { Crumbs, Empty, Icon, Note, PageHead, Photo, Steps } from '@/shared/ui';
 
 export default function CartPage() {
   const { ready, cart, setQty, toast, draft, setDraft, meta } = useShop();
@@ -39,7 +38,7 @@ export default function CartPage() {
               <p className="mt-2 text-[13px] text-muted">Получатель — в регионе «{to.name}» ({to.city} и область).</p>
               <div className="mt-3">{g.items.map((i) => (
                 <div key={i.id} className="grid grid-cols-[64px_1fr] items-center gap-x-4 gap-y-2 border-b border-line py-3.5 last:border-0 sm:grid-cols-[72px_1fr_auto_auto]">
-                  <div className="relative h-16 overflow-hidden rounded-lg"><Image src={i.photo} alt="" fill sizes="72px" className="object-cover" /></div>
+                  <div className="relative h-16 overflow-hidden rounded-lg bg-soft"><Photo src={i.photo} alt="" sizes="72px" /></div>
                   <div><Link className="font-semibold" href={`/product/${i.id}`}>{i.name}</Link>
                     <p className="text-[13px] text-muted">{i.weight_g} г · {rub(i.price_rub)}{i.temp_sensitive && <span className="text-snow"> · шоколад</span>}</p>
                     <button className="link mt-1.5" onClick={() => { setQty(i.id, 0); toast('Товар удалён'); }}>Удалить</button></div>
