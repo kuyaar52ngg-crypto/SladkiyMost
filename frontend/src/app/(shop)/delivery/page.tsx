@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import { Calculator } from '@/features/delivery/Calculator';
 import { get } from '@/shared/api/client';
-import type { Meta, Wave } from '@/shared/api/types';
+import { getMeta } from '@/shared/api/meta';
+import type { Wave } from '@/shared/api/types';
 import { rub } from '@/shared/lib/format';
 import { Crumbs, Kv, PageHead } from '@/shared/ui';
 import { WaveSummary } from '@/widgets/WaveSummary';
@@ -9,7 +10,7 @@ import { WaveSummary } from '@/widgets/WaveSummary';
 export const metadata: Metadata = { title: 'Сборная доставка' };
 
 export default async function DeliveryPage() {
-  const [meta, waves] = await Promise.all([get<Meta>('/api/meta'), get<Wave[]>('/api/waves?only_open=true')]);
+  const [meta, waves] = await Promise.all([getMeta(), get<Wave[]>('/api/waves?only_open=true')]);
   const p = meta.policy;
   const seasons = [['Декабрь — февраль', 'Обязательная термоупаковка для шоколадных изделий (мороз)'], ['Июнь — август', 'Обязательная термоупаковка для шоколадных изделий (перегрев)'], ['Май, ноябрь', 'Межсезонье: срок доставки +7 дней'], ['Март — апрель, сентябрь — октябрь', 'Ограничений нет']];
   return (

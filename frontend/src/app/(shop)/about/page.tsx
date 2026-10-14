@@ -1,14 +1,13 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
-import { get } from '@/shared/api/client';
-import type { Meta } from '@/shared/api/types';
+import { getMeta } from '@/shared/api/meta';
 import { rub } from '@/shared/lib/format';
 import { Crumbs, PageHead } from '@/shared/ui';
 
 export const metadata: Metadata = { title: 'О нас' };
 
 export default async function AboutPage() {
-  const { policy: p } = await get<Meta>('/api/meta');
+  const { policy: p } = await getMeta();
   const biz = [['15%', 'Комиссия с продажи товаров производителей — основной доход.'], [rub(p.gift_box_price), 'Подарочное оформление: коробка с лентой и открытка.'], [rub(p.thermo_price), 'Термоупаковка для шоколада — платная услуга.'], ['B2B', 'Корпоративные наборы к праздникам — заказ от организаций.']];
   return (
     <div className="container-x pt-7 pb-20">

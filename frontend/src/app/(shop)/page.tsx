@@ -1,7 +1,8 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { calc, get } from '@/shared/api/client';
-import type { Meta, Product, QuoteResponse, Wave } from '@/shared/api/types';
+import { getMeta } from '@/shared/api/meta';
+import type { Product, QuoteResponse, Wave } from '@/shared/api/types';
 import { fmtDate, kg, rub } from '@/shared/lib/format';
 import { Empty, Icon } from '@/shared/ui';
 import { ProductCard } from '@/widgets/ProductCard';
@@ -9,7 +10,7 @@ import { WaveSummary } from '@/widgets/WaveSummary';
 
 export default async function Home() {
   const [meta, products, waves] = await Promise.all([
-    get<Meta>('/api/meta'), get<Product[]>('/api/products?sort=new&limit=8'), get<Wave[]>('/api/waves?only_open=true'),
+    getMeta(), get<Product[]>('/api/products?sort=new&limit=8'), get<Wave[]>('/api/waves?only_open=true'),
   ]);
   const p = meta.policy;
   const hero = meta.content.hero;

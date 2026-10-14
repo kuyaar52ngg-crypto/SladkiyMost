@@ -2,14 +2,15 @@ import type { Metadata } from 'next';
 import Image from 'next/image';
 import { GiftPicker } from '@/features/delivery/GiftPicker';
 import { get } from '@/shared/api/client';
-import type { Meta, Product } from '@/shared/api/types';
+import { getMeta } from '@/shared/api/meta';
+import type { Product } from '@/shared/api/types';
 import { rub } from '@/shared/lib/format';
 import { Crumbs, PageHead } from '@/shared/ui';
 
 export const metadata: Metadata = { title: 'Подарочный заказ' };
 
 export default async function GiftPage({ searchParams }: { searchParams: Promise<{ to?: string }> }) {
-  const [{ to }, meta, products] = await Promise.all([searchParams, get<Meta>('/api/meta'), get<Product[]>('/api/products')]);
+  const [{ to }, meta, products] = await Promise.all([searchParams, getMeta(), get<Product[]>('/api/products')]);
   return (
     <div className="container-x pt-7 pb-20">
       <Crumbs items={[['Главная', '/'], ['Подарочный заказ']]} />

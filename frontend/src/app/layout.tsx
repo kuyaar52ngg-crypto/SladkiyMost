@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { connection } from 'next/server';
 import { Inter, Manrope, Montserrat_Alternates } from 'next/font/google';
 import { ShopProvider } from '@/features/shop/store';
-import { get } from '@/shared/api/client';
+import { getMeta } from '@/shared/api/meta';
 import type { Meta } from '@/shared/api/types';
 import './globals.css';
 
@@ -20,7 +20,7 @@ export const viewport: Viewport = { themeColor: '#43281f', viewportFit: 'cover' 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   await connection(); // рендер по запросу (без обращения к API во время сборки), данные — из Data Cache
   let meta: Meta | null = null;
-  try { meta = await get<Meta>('/api/meta'); } catch { /* бэкенд недоступен */ }
+  try { meta = await getMeta(); } catch { /* бэкенд недоступен */ }
   return (
     <html lang="ru" className={`${inter.variable} ${manrope.variable} ${mont.variable}`}>
       <body>

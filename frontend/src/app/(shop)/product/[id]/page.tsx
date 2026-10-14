@@ -4,7 +4,8 @@ import { Gallery } from '@/features/product/Gallery';
 import { ProductActions } from '@/features/product/ProductActions';
 import { Reviews, reviewsLabel } from '@/features/product/Reviews';
 import { ApiError, get } from '@/shared/api/client';
-import type { Meta, Product, ProductReviews, Wave } from '@/shared/api/types';
+import { getMeta } from '@/shared/api/meta';
+import type { Product, ProductReviews, Wave } from '@/shared/api/types';
 import { fmtDate, fmtRange, rub } from '@/shared/lib/format';
 import { Crumbs, Icon, Kv, Note, Stars } from '@/shared/ui';
 import { ProductCard } from '@/widgets/ProductCard';
@@ -28,7 +29,7 @@ export default async function ProductPage({ params }: Props) {
   if (!p.active) notFound();
   const dir = p.region === 'YKT' ? 'YKT-DNR' : 'DNR-YKT';
   const [meta, waves, related, reviews] = await Promise.all([
-    get<Meta>('/api/meta'), get<Wave[]>(`/api/waves?direction=${dir}&only_open=true`), get<Product[]>(`/api/products?region=${p.region}`),
+    getMeta(), get<Wave[]>(`/api/waves?direction=${dir}&only_open=true`), get<Product[]>(`/api/products?region=${p.region}`),
     get<ProductReviews>(`/api/products/${encodeURIComponent(p.id)}/reviews`).catch((): ProductReviews => ({ rating: 0, count: 0, items: [] })),
   ]);
   const w = waves[0];

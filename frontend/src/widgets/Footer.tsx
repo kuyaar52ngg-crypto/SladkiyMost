@@ -1,6 +1,5 @@
 import Link from 'next/link';
-import { get } from '@/shared/api/client';
-import type { Meta } from '@/shared/api/types';
+import { getMeta } from '@/shared/api/meta';
 import { Logo } from './Logo';
 
 const COLS: [string, [string, string][]][] = [
@@ -12,7 +11,7 @@ const COLS: [string, [string, string][]][] = [
 const tgUrl = (t: string) => (t.startsWith('@') ? `https://t.me/${t.slice(1)}` : t);
 
 export async function Footer() {
-  const meta = await get<Meta>('/api/meta').catch(() => null);
+  const meta = await getMeta().catch(() => null);
   const c = meta?.content;
   const contacts = c ? ([
     c.contacts.phone && ['tel', c.contacts.phone, `tel:${c.contacts.phone.replace(/[^\d+]/g, '')}`],
