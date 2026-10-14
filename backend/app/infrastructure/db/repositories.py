@@ -20,11 +20,13 @@ from app.domain.entities import (
     ReceiveMethod,
     Recipient,
     Region,
+    Role,
+    User,
     Wave,
     WaveStatus,
 )
 
-from .models import OrderEventRow, OrderItemRow, OrderRow, ProductRow, WaveRow
+from .models import OrderEventRow, OrderItemRow, OrderRow, ProductPhotoRow, ProductRow, UserRow, WaveRow
 
 # ---------------- products ----------------
 PRODUCT_FIELDS = ("manufacturer", "name", "category", "weight_g", "price_rub", "temp_sensitive",
@@ -32,7 +34,8 @@ PRODUCT_FIELDS = ("manufacturer", "name", "category", "weight_g", "price_rub", "
 
 
 def _product(r: ProductRow) -> Product:
-    return Product(id=r.id, region=Region(r.region), **{f: getattr(r, f) for f in PRODUCT_FIELDS})
+    return Product(id=r.id, region=Region(r.region), photos=[ph.url for ph in r.photos] or [r.photo],
+                   created_at=r.created_at, **{f: getattr(r, f) for f in PRODUCT_FIELDS})
 
 
 class SqlProductRepository:
@@ -40,7 +43,7 @@ class SqlProductRepository:
         self.s = s
 
     def list(self, f: ProductFilter) -> list[Product]:
-        q = select(ProductRow).order_by(ProductRow.region.desc(), ProductRow.id)
+        q = select(ProductRow).order_by(ProductRow.created_at.desc(), ProductRow.id)
         if not f.include_inactive:
             q = q.where(ProductRow.active.is_(True))
         if f.regions:
@@ -70,7 +73,17 @@ class SqlProductRepository:
         r.region = p.region.value
         for f in PRODUCT_FIELDS:
             setattr(r, f, getattr(p, f))
+        urls = p.photos or [p.photo]
+        if [ph.url for ph in r.photos] != urls:
+            r.photos = [ProductPhotoRow(url=u, position=i) for i, u in enumerate(urls)]
         self.s.add(r)
+        self.s.flush()
+
+    def delete(self, product_id: str) -> None:
+        r = self.s.get(ProductRow, product_id)
+        if r:
+            self.s.delete(r)
+            self.s.flush()
 
     def ids_with_prefix(self, prefix: str) -> list[str]:
         return list(self.s.scalars(select(ProductRow.id).where(ProductRow.id.like(f"{prefix}-%"))))
@@ -138,6 +151,7 @@ def _order(r: OrderRow) -> Order:
         kind=OrderKind(r.kind), gift=gift, company=r.company, payment_method=r.payment_method,
         status=OrderStatus(r.status), refund_rub=r.refund_rub, final_delivery_rub=r.final_delivery_rub,
         history=[OrderEvent(OrderStatus(e.status), e.date, e.note) for e in r.events],
+        user_id=r.user_id,
     )
 
 
@@ -154,6 +168,7 @@ def _fill_row(r: OrderRow, o: Order) -> None:
               "total_rub", "refund_rub", "final_delivery_rub", "payment_method", "created_at"):
         setattr(r, f, getattr(o, f))
     r.status = o.status.value
+    r.user_id = o.user_id
     # история — только дописывается
     for e in o.history[len(r.events):]:
         r.events.append(OrderEventRow(status=e.status.value, date=e.date, note=e.note))
@@ -195,7 +210,60 @@ class SqlOrderRepository:
             q = q.where(OrderRow.wave_id == wave_id)
         return [_order(r) for r in self.s.scalars(q)]
 
-    def by_phone(self, digits: str) -> list[Order]:
-        q = (select(OrderRow).where(or_(OrderRow.customer_phone_digits == digits, OrderRow.recipient_phone_digits == digits))
-             .order_by(OrderRow.number.desc()))
+
+    def by_user(self, user_id: int) -> list[Order]:
+        q = select(OrderRow).where(OrderRow.user_id == user_id).order_by(OrderRow.number.desc())
         return [_order(r) for r in self.s.scalars(q)]
+
+    def has_product(self, product_id: str) -> bool:
+        q = select(OrderItemRow.id).where(OrderItemRow.product_id == product_id).limit(1)
+        return self.s.scalar(q) is not None
+
+
+# ---------------- users ----------------
+USER_FIELDS = ("phone", "name", "email", "password_hash", "tg_chat_id", "tg_link_token", "failed_logins",
+               "locked_until")
+
+
+def _user(r: UserRow) -> User:
+    return User(id=r.id, role=Role(r.role), created_at=r.created_at, **{f: getattr(r, f) for f in USER_FIELDS})
+
+
+class SqlUserRepository:
+    def __init__(self, s: Session):
+        self.s = s
+
+    def get(self, user_id: int) -> User | None:
+        r = self.s.get(UserRow, user_id)
+        return _user(r) if r else None
+
+    def by_phone(self, digits: str) -> User | None:
+        r = self.s.scalar(select(UserRow).where(UserRow.phone_digits == digits))
+        return _user(r) if r else None
+
+    def by_link_token(self, token: str) -> User | None:
+        r = self.s.scalar(select(UserRow).where(UserRow.tg_link_token == token))
+        return _user(r) if r else None
+
+    def admins(self) -> list[User]:
+        return [_user(r) for r in self.s.scalars(select(UserRow).where(UserRow.role == Role.ADMIN.value))]
+
+    def add(self, u: User) -> None:
+        r = UserRow()
+        self._fill(r, u)
+        self.s.add(r)
+        self.s.flush()
+        u.id, u.created_at = r.id, r.created_at
+
+    def save(self, u: User) -> None:
+        r = self.s.get(UserRow, u.id)
+        if r is None:
+            return self.add(u)
+        self._fill(r, u)
+        self.s.flush()
+
+    @staticmethod
+    def _fill(r: UserRow, u: User) -> None:
+        r.role, r.phone_digits = u.role.value, phone_digits(u.phone)
+        for f in USER_FIELDS:
+            setattr(r, f, getattr(u, f))

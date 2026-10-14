@@ -17,6 +17,8 @@ from app.domain.entities import (
     OrderStatus,
     ReceiveMethod,
     Recipient,
+    Role,
+    User,
 )
 from app.domain.errors import Conflict, DomainError, Forbidden, NotFound
 
@@ -56,6 +58,7 @@ class PlaceOrderCommand:
     company: str = ""
     payment: str = "card"
     consent: bool = False
+    user_id: int | None = None
 
 
 PHONE_RE = re.compile(r"^[+\d][\d\s()\-]{9,}$")
@@ -143,6 +146,7 @@ def place_order(uow: UnitOfWork, today: date, cmd: PlaceOrderCommand,
         gift=gift, company=cmd.company[:120] if cmd.b2b else None,
         payment_method="СБП" if cmd.payment == "sbp" else "Банковская карта",
         history=[OrderEvent(OrderStatus.ACCEPTED, today, "Заказ принят и оплачен (имитация оплаты)")],
+        user_id=cmd.user_id,
     )
     uow.orders.add(order)
     uow.commit()
@@ -156,14 +160,29 @@ def get_order(uow: UnitOfWork, code: str) -> Order:
     return o
 
 
-def orders_by_phone(uow: UnitOfWork, phone: str) -> list[Order]:
+def can_access(o: Order, viewer: User | None, phone: str = "") -> bool:
+    """Заказ видят администратор, владелец аккаунта и тот, кто знает телефон покупателя или получателя."""
+    if viewer and (viewer.role == Role.ADMIN or (o.user_id is not None and o.user_id == viewer.id)):
+        return True
     d = phone_digits(phone)
-    return uow.orders.by_phone(d) if len(d) == 10 else []
+    return len(d) == 10 and d in (phone_digits(o.customer_phone), phone_digits(o.recipient.phone))
 
 
-def cancel_order(uow: UnitOfWork, today: date, code: str, phone: str) -> Order:
+def view_order(uow: UnitOfWork, code: str, viewer: User | None, phone: str = "") -> Order:
     o = get_order(uow, code)
-    if phone_digits(o.customer_phone) != phone_digits(phone):
+    if not can_access(o, viewer, phone):
+        raise Forbidden("Укажите телефон, на который оформлен заказ")
+    return o
+
+
+def orders_of_user(uow: UnitOfWork, user: User) -> list[Order]:
+    return uow.orders.by_user(user.id) if user.id is not None else []
+
+
+def cancel_order(uow: UnitOfWork, today: date, code: str, viewer: User | None, phone: str = "") -> Order:
+    o = get_order(uow, code)
+    owner = viewer is not None and o.user_id is not None and o.user_id == viewer.id
+    if not owner and phone_digits(o.customer_phone) != phone_digits(phone):
         raise Forbidden("Нет доступа к заказу")
     if o.status != OrderStatus.ACCEPTED:
         raise Conflict("Заказ уже собирается — отмена через поддержку")

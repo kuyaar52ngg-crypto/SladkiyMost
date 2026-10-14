@@ -1,30 +1,54 @@
 'use client';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useState, type FormEvent } from 'react';
 import { OrderCard } from '@/features/orders/OrderCard';
 import { useShop } from '@/features/shop/store';
-import { get, post } from '@/shared/api/client';
+import { ApiError, get, post } from '@/shared/api/client';
 import type { Order } from '@/shared/api/types';
 import { cn, fmtDate, fmtRange, kg, rub } from '@/shared/lib/format';
 import { Crumbs, Empty, Kv, Note, Total } from '@/shared/ui';
 
 const CARD_BG: Record<string, string> = { berry: 'bg-gradient-to-br from-[#fbf0f1] to-[#f6e1e4]', snow: 'bg-gradient-to-br from-[#eef4f8] to-[#fdfdfd]', sun: 'bg-gradient-to-br from-[#fdf3e5] to-[#fbe8d3]' };
 
-export default function OrderPage() {
+/** Гостю для доступа к заказу нужен телефон покупателя или получателя. */
+function PhoneGate({ code, error, onPhone }: { code: string; error: string; onPhone: (p: string) => void }) {
+  const [v, setV] = useState('');
+  const submit = (e: FormEvent) => { e.preventDefault(); onPhone(v); };
+  return (
+    <div className="container-x max-w-[480px] py-10">
+      <div className="card"><h2 className="h2">Заказ {code}</h2><p className="mt-2 text-muted">Укажите телефон, на который оформлен заказ, или <Link className="text-accent underline" href={`/login?next=${encodeURIComponent(`/orders/${code}`)}`}>войдите в аккаунт</Link>.</p>
+        <form onSubmit={submit} className="mt-4 space-y-3">
+          <input className="input" type="tel" aria-label="Телефон" placeholder="+7 (___) ___-__-__" value={v} onChange={(e) => setV(e.target.value)} />
+          {error && <p role="alert" className="text-xs text-accent">{error}</p>}
+          <button className="btn btn-primary w-full">Показать заказ</button>
+        </form></div>
+    </div>
+  );
+}
+
+function OrderView() {
   const code = decodeURIComponent(useParams<{ code: string }>().code);
-  const { add, profile, toast } = useShop();
+  const { add, profile, user, toast } = useShop();
   const router = useRouter();
-  const [o, setO] = useState<Order | null | false>(null);
+  const [phone, setPhone] = useState(useSearchParams().get('phone') || '');
+  const [o, setO] = useState<Order | null | false | 'locked'>(null);
+  const [gateErr, setGateErr] = useState('');
   const [confirm, setConfirm] = useState(false);
-  const load = useCallback(() => get<Order>(`/api/orders/${encodeURIComponent(code)}`).then(setO).catch(() => setO(false)), [code]);
-  useEffect(() => { load(); }, [load]);
+  const p = phone || profile?.phone || '';
+  const load = useCallback(() => get<Order>(`/api/orders/${encodeURIComponent(code)}?phone=${encodeURIComponent(p)}`).then(setO)
+    .catch((e) => {
+      if (e instanceof ApiError && e.status === 403) { setGateErr(p ? 'Телефон не совпадает с заказом' : ''); setO('locked'); }
+      else setO(false);
+    }), [code, p]);
+  useEffect(() => { if (user !== undefined) load(); }, [load, user]);
   if (o === null) return <div className="container-x py-24 text-center text-muted">Загружаем…</div>;
+  if (o === 'locked') return <PhoneGate code={code} error={gateErr} onPhone={setPhone} />;
   if (!o) return <div className="container-x py-10"><Empty title="Заказ не найден" text="Проверьте номер заказа."><Link className="btn" href="/orders">К заказам</Link></Empty></div>;
 
   const cancel = async () => {
     if (!confirm) { setConfirm(true); return; }
-    try { await post(`/api/orders/${encodeURIComponent(o.code)}/cancel`, { phone: profile?.phone || '' }); toast('Заказ отменён'); load(); }
+    try { await post(`/api/orders/${encodeURIComponent(o.code)}/cancel`, { phone: p }); toast('Заказ отменён'); load(); }
     catch (e) { toast((e as Error).message); }
   };
   const w = o.wave;
@@ -54,4 +78,8 @@ export default function OrderPage() {
       </div>
     </div>
   );
+}
+
+export default function OrderPage() {
+  return <Suspense><OrderView /></Suspense>;
 }

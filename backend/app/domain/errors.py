@@ -13,5 +13,9 @@ class Conflict(DomainError):
     """Действие невозможно в текущем состоянии (HTTP 409)."""
 
 
+class Unauthorized(DomainError):
+    """Нужен вход или неверные учётные данные (HTTP 401)."""
+
+
 class Forbidden(DomainError):
     """Нет доступа (HTTP 403)."""

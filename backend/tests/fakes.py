@@ -5,7 +5,7 @@ import copy
 import itertools
 
 from app.application.ports import ProductFilter
-from app.domain.entities import OrderStatus
+from app.domain.entities import OrderStatus, Role
 
 
 class MemProducts:
@@ -30,6 +30,9 @@ class MemProducts:
 
     def save(self, p):
         self.data[p.id] = copy.deepcopy(p)
+
+    def delete(self, pid):
+        self.data.pop(pid, None)
 
     def ids_with_prefix(self, prefix):
         return [i for i in self.data if i.startswith(prefix + "-")]
@@ -82,10 +85,62 @@ class MemOrders:
         return [copy.deepcopy(o) for o in self.data.values()
                 if (not status or o.status == status) and (not wave_id or o.wave_id == wave_id)]
 
+    def by_user(self, uid):
+        return [copy.deepcopy(o) for o in self.data.values() if o.user_id == uid]
+
+    def has_product(self, pid):
+        return any(i.product_id == pid for o in self.data.values() for i in o.items)
+
+
+class MemUsers:
+    def __init__(self):
+        self.data, self.seq = {}, itertools.count(1)
+
+    def get(self, uid):
+        return copy.deepcopy(self.data.get(uid))
+
+    def _find(self, pred):
+        return next((copy.deepcopy(u) for u in self.data.values() if pred(u)), None)
+
     def by_phone(self, digits):
         from app.application.orders import phone_digits
-        return [copy.deepcopy(o) for o in self.data.values()
-                if digits in (phone_digits(o.customer_phone), phone_digits(o.recipient.phone))]
+        return self._find(lambda u: phone_digits(u.phone) == digits)
+
+    def by_link_token(self, token):
+        return self._find(lambda u: u.tg_link_token == token)
+
+    def admins(self):
+        return [copy.deepcopy(u) for u in self.data.values() if u.role == Role.ADMIN]
+
+    def add(self, u):
+        u.id = next(self.seq)
+        self.data[u.id] = copy.deepcopy(u)
+
+    def save(self, u):
+        self.data[u.id] = copy.deepcopy(u)
+
+
+class PlainHasher:
+    """Быстрый «хешер» для тестов use cases (в API-тестах — настоящий Argon2)."""
+    def hash(self, password):
+        return "h:" + password
+
+    def verify(self, password, password_hash):
+        return password_hash == "h:" + password
+
+
+class FakeNotifier:
+    def __init__(self):
+        self.sent = []
+
+    def send(self, chat_id, text):
+        self.sent.append((chat_id, text))
+
+
+class FakeStorage:
+    def signed_upload(self, path, content_type):
+        from app.application.ports import SignedUpload
+        return SignedUpload(f"https://upload.test/{path}", f"https://cdn.test/{path}")
 
 
 class MemUow:
@@ -93,6 +148,7 @@ class MemUow:
         self.products = MemProducts()
         self.orders = MemOrders()
         self.waves = MemWaves(self.orders)
+        self.users = MemUsers()
         self.commits = 0
 
     def __enter__(self):

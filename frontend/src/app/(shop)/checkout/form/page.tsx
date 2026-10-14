@@ -18,7 +18,7 @@ const CARDS: Record<string, [string, string]> = {
 
 export default function FormPage() {
   const { ready, items, origin } = useCheckoutItems();
-  const { meta, draft, setDraft, profile, setProfile, clearRegion, toast } = useShop();
+  const { meta, draft, setDraft, profile, setProfile, clearRegion, toast, user } = useShop();
   const router = useRouter();
   const [r, setR] = useState<QuoteResponse | null>(null);
   const [customer, setCustomer] = useState({ name: '', phone: '' });
@@ -30,7 +30,7 @@ export default function FormPage() {
   const key = JSON.stringify(lines(items));
   const receive = draft.receive || 'pickup';
 
-  useEffect(() => { if (profile) setCustomer(profile); }, [profile]);
+  useEffect(() => { const c = user || profile; if (c) setCustomer({ name: c.name, phone: c.phone }); }, [user, profile]);
   useEffect(() => {
     if (!ready || !items.length) return;
     if (!draft.wave_id) { router.replace('/checkout/wave'); return; }
@@ -85,6 +85,7 @@ export default function FormPage() {
         <Layout
           main={<div className="space-y-4">
             <div className="card"><h3 className="h3 mb-4">1. Ваши контакты</h3>
+              {user === null && <p className="-mt-2 mb-4 text-[13px] text-muted"><Link className="text-accent underline" href="/login?next=/checkout/form">Войдите</Link>, чтобы заказ сохранился в личном кабинете, — или оформите без регистрации.</p>}
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="field"><span className="label">Ваше имя *</span><input className={inp('c_name')} autoComplete="name" value={customer.name} onChange={(e) => setCustomer({ ...customer, name: e.target.value })} /></label>
                 <label className="field"><span className="label">Ваш телефон *</span><input className={inp('c_phone')} type="tel" autoComplete="tel" placeholder="+7 (___) ___-__-__" value={customer.phone} onChange={(e) => setCustomer({ ...customer, phone: e.target.value })} /></label>

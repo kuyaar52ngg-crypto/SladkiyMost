@@ -16,6 +16,7 @@ from app.domain.entities import (
     Product,
     ReceiveMethod,
     Region,
+    User,
     WaveStatus,
 )
 
@@ -62,7 +63,7 @@ class OrderIn(QuoteIn):
 
 
 class CancelIn(BaseModel):
-    phone: str
+    phone: str = ""
 
 
 class OrderStatusIn(BaseModel):
@@ -82,15 +83,32 @@ class ProductIn(BaseModel):
     price_rub: int = Field(gt=0)
     temp_sensitive: bool = False
     shelf_life_days: int = Field(30, gt=0)
-    photo: str = "/img/gift.jpg"
-    description: str = ""
-    composition: str = ""
-    tag: str = ""
+    photos: list[str] = Field(min_length=1, max_length=10)
+    description: str = Field("", max_length=4000)
+    composition: str = Field("", max_length=4000)
+    tag: str = Field("", max_length=40)
     active: bool = True
 
 
 class ActiveIn(BaseModel):
     active: bool
+
+
+class UploadIn(BaseModel):
+    content_type: str
+    size: int = Field(gt=0)
+
+
+class RegisterIn(BaseModel):
+    phone: str = Field(max_length=40)
+    name: str = Field(max_length=120)
+    password: str = Field(max_length=128)
+    email: str | None = Field(None, max_length=160)
+
+
+class LoginIn(BaseModel):
+    phone: str = Field(max_length=40)
+    password: str = Field(max_length=128)
 
 
 # ---------------- ответы ----------------
@@ -109,10 +127,41 @@ class ProductOut(BaseModel):
     composition: str
     tag: str
     active: bool
+    photos: list[str]
 
     @classmethod
     def of(cls, p: Product) -> "ProductOut":
-        return cls(**p.__dict__)
+        return cls(**{k: v for k, v in p.__dict__.items() if k != "created_at"})
+
+
+class DeletedOut(BaseModel):
+    deleted: bool
+
+
+class UploadOut(BaseModel):
+    upload_url: str
+    public_url: str
+
+
+class UserOut(BaseModel):
+    id: int
+    role: str
+    name: str
+    phone: str
+    email: str | None
+    telegram: bool
+
+    @classmethod
+    def of(cls, u: User) -> "UserOut":
+        return cls(id=u.id, role=u.role.value, name=u.name, phone=u.phone, email=u.email, telegram=bool(u.tg_chat_id))
+
+
+class LinkOut(BaseModel):
+    url: str
+
+
+class BotOut(BaseModel):
+    username: str | None
 
 
 class WaveOut(BaseModel):

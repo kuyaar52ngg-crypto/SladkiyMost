@@ -4,8 +4,10 @@ from __future__ import annotations
 from datetime import date
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import FileResponse
 
 from app.application import catalog, orders, waves
+from app.application import notifications as notify
 from app.application.ports import ProductFilter, UnitOfWork
 from app.domain import logistics as L
 from app.domain.entities import (
@@ -17,10 +19,12 @@ from app.domain.entities import (
     Direction,
     LineItem,
     Region,
+    User,
 )
+from app.domain.errors import NotFound
 
 from .. import schemas as S
-from ..deps import today, uow
+from ..deps import Container, container, current_user, require_user, today, uow
 
 router = APIRouter(prefix="/api", tags=["shop"])
 
@@ -42,10 +46,11 @@ def meta(d: date = Depends(today)):
 
 @router.get("/products", response_model=list[S.ProductOut])
 def products(region: str = "", category: str = "", q: str = "", min_price: int | None = None,
-             max_price: int | None = None, sort: str = "", u: UnitOfWork = Depends(uow)):
+             max_price: int | None = None, sort: str = "", limit: int | None = Query(None, ge=1, le=100),
+             u: UnitOfWork = Depends(uow)):
     f = ProductFilter(regions=[r for r in region.split(",") if r], categories=[c for c in category.split(",") if c],
                       query=q, min_price=min_price, max_price=max_price)
-    return [S.ProductOut.of(p) for p in catalog.list_products(u, f, sort)]
+    return [S.ProductOut.of(p) for p in catalog.list_products(u, f, sort)[:limit]]
 
 
 @router.get("/products/{product_id}", response_model=S.ProductOut)
@@ -88,27 +93,44 @@ def _order_out(u: UnitOfWork, d: date, o) -> S.OrderOut:
 
 
 @router.post("/orders", response_model=S.OrderOut, status_code=201)
-def create_order(b: S.OrderIn, u: UnitOfWork = Depends(uow), d: date = Depends(today)):
+def create_order(b: S.OrderIn, u: UnitOfWork = Depends(uow), d: date = Depends(today),
+                 user: User | None = Depends(current_user), c: Container = Depends(container)):
     cmd = orders.PlaceOrderCommand(
         quote=_quote_request(b), customer_name=b.customer_name, customer_phone=b.customer_phone,
         recipient_name=b.recipient_name, recipient_phone=b.recipient_phone, address=b.address,
         pickup_point=b.pickup_point, gift_message=b.gift_message, gift_signature=b.gift_signature,
         gift_card=b.gift_card, gift_surprise=b.gift_surprise, b2b=b.b2b, company=b.company,
-        payment=b.payment, consent=b.consent,
+        payment=b.payment, consent=b.consent, user_id=user.id if user else None,
     )
-    return _order_out(u, d, orders.place_order(u, d, cmd))
+    o = orders.place_order(u, d, cmd)
+    notify.order_placed(u, c.notifier, o, c.site_url)
+    return _order_out(u, d, o)
 
 
 @router.get("/orders", response_model=list[S.OrderOut])
-def my_orders(phone: str, u: UnitOfWork = Depends(uow), d: date = Depends(today)):
-    return [_order_out(u, d, o) for o in orders.orders_by_phone(u, phone)]
+def my_orders(user: User = Depends(require_user), u: UnitOfWork = Depends(uow), d: date = Depends(today)):
+    return [_order_out(u, d, o) for o in orders.orders_of_user(u, user)]
 
 
 @router.get("/orders/{code}", response_model=S.OrderOut)
-def order(code: str, u: UnitOfWork = Depends(uow), d: date = Depends(today)):
-    return _order_out(u, d, orders.get_order(u, code))
+def order(code: str, phone: str = "", u: UnitOfWork = Depends(uow), d: date = Depends(today),
+          user: User | None = Depends(current_user)):
+    return _order_out(u, d, orders.view_order(u, code, user, phone))
 
 
 @router.post("/orders/{code}/cancel", response_model=S.OrderOut)
-def cancel(code: str, body: S.CancelIn, u: UnitOfWork = Depends(uow), d: date = Depends(today)):
-    return _order_out(u, d, orders.cancel_order(u, d, code, body.phone))
+def cancel(code: str, body: S.CancelIn, u: UnitOfWork = Depends(uow), d: date = Depends(today),
+           user: User | None = Depends(current_user), c: Container = Depends(container)):
+    o = orders.cancel_order(u, d, code, user, body.phone)
+    notify.order_cancelled(u, c.notifier, o, c.site_url, by_customer=True)
+    return _order_out(u, d, o)
+
+
+@router.get("/media/{path:path}", include_in_schema=False)
+def media(path: str, c: Container = Depends(container)):
+    """Фото из локального хранилища (разработка без Supabase)."""
+    file = getattr(c.storage, "file", None)
+    target = file(path) if file else None
+    if not target or not target.is_file():
+        raise NotFound("Файл не найден")
+    return FileResponse(target)

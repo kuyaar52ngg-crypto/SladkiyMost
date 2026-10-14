@@ -15,9 +15,15 @@ services:
     build: ./backend
     environment:
       DATABASE_URL: postgresql+psycopg://sm:sm@db:5432/sladkiy_most
-      ADMIN_TOKEN: ${ADMIN_TOKEN:-admin}
+      JWT_SECRET: ${JWT_SECRET:-change-me-local-secret-at-least-32-chars}
+      ADMIN_PHONE: ${ADMIN_PHONE:-+7 900 000-00-00}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin-password}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      SITE_URL: http://localhost:3000
+      API_URL: http://localhost:8000
     depends_on:
       db: { condition: service_healthy }
+    volumes: [uploads:/app/uploads]
     ports: ["8000:8000"]
 
   frontend:
@@ -31,3 +37,4 @@ services:
 
 volumes:
   pgdata:
+  uploads:

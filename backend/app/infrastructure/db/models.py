@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import date, datetime
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     Date,
     DateTime,
@@ -34,11 +35,41 @@ class ProductRow(Base):
     price_rub: Mapped[int] = mapped_column(Integer)
     temp_sensitive: Mapped[bool] = mapped_column(Boolean, default=False)
     shelf_life_days: Mapped[int] = mapped_column(Integer)
-    photo: Mapped[str] = mapped_column(String(200))
+    photo: Mapped[str] = mapped_column(String(500))
     description: Mapped[str] = mapped_column(Text, default="")
     composition: Mapped[str] = mapped_column(Text, default="")
     tag: Mapped[str] = mapped_column(String(40), default="")
     active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    photos: Mapped[list["ProductPhotoRow"]] = relationship(cascade="all, delete-orphan", lazy="selectin",
+                                                           order_by="ProductPhotoRow.position")
+
+
+class ProductPhotoRow(Base):
+    __tablename__ = "product_photos"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    product_id: Mapped[str] = mapped_column(ForeignKey("products.id", ondelete="CASCADE"), index=True)
+    url: Mapped[str] = mapped_column(String(500))
+    position: Mapped[int] = mapped_column(Integer)
+
+
+class UserRow(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    role: Mapped[str] = mapped_column(String(10), index=True)
+    phone: Mapped[str] = mapped_column(String(40))
+    phone_digits: Mapped[str] = mapped_column(String(10), unique=True)
+    name: Mapped[str] = mapped_column(String(120))
+    email: Mapped[str | None] = mapped_column(String(160))
+    password_hash: Mapped[str] = mapped_column(String(255))
+    tg_chat_id: Mapped[int | None] = mapped_column(BigInteger)
+    tg_link_token: Mapped[str | None] = mapped_column(String(64), unique=True)
+    failed_logins: Mapped[int] = mapped_column(Integer, default=0)
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class WaveRow(Base):
@@ -92,6 +123,7 @@ class OrderRow(Base):
     final_delivery_rub: Mapped[int | None] = mapped_column(Integer)
     payment_method: Mapped[str] = mapped_column(String(40))
     status: Mapped[str] = mapped_column(String(12), index=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
 
     items: Mapped[list["OrderItemRow"]] = relationship(cascade="all, delete-orphan", lazy="selectin",
                                                        order_by="OrderItemRow.id")
@@ -107,7 +139,7 @@ class OrderItemRow(Base):
     product_id: Mapped[str] = mapped_column(ForeignKey("products.id"))
     name: Mapped[str] = mapped_column(String(160))
     region: Mapped[str] = mapped_column(String(3))
-    photo: Mapped[str] = mapped_column(String(200))
+    photo: Mapped[str] = mapped_column(String(500))
     weight_g: Mapped[int] = mapped_column(Integer)
     price_rub: Mapped[int] = mapped_column(Integer)
     temp_sensitive: Mapped[bool] = mapped_column(Boolean)

@@ -10,7 +10,7 @@ const NAV = [['/catalog', 'Каталог'], ['/delivery', 'Сборная до�
 
 export function Header() {
   const path = usePathname();
-  const { count, ready } = useShop();
+  const { count, ready, user } = useShop();
   return (
     <>
       <div className="bg-ink px-3 py-2 text-center text-xs text-white">Соединяем регионы через вкус и эмоции</div>
@@ -24,7 +24,7 @@ export function Header() {
           </nav>
           <div className="flex items-center gap-5 text-[13px]">
             <Link href="/catalog?focus=1" aria-label="Поиск" className="p-1"><Icon name="search" /></Link>
-            <Link href="/orders" className="hidden items-center gap-2 p-1 md:flex"><Icon name="user" />Мои заказы</Link>
+            <Link href={user === null ? '/login' : '/orders'} className="hidden items-center gap-2 p-1 md:flex"><Icon name="user" />{user === null ? 'Войти' : 'Мои заказы'}</Link>
             <Link href="/cart" aria-label={`Корзина: ${count}`} className="flex items-center gap-2 p-1">
               <Icon name="bag" /><span className="font-semibold text-accent">{ready && count ? count : ''}</span>
             </Link>

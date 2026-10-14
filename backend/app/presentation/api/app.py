@@ -5,12 +5,12 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.domain.errors import Conflict, DomainError, Forbidden, NotFound
+from app.domain.errors import Conflict, DomainError, Forbidden, NotFound, Unauthorized
 
 from .deps import Container
-from .routers import admin, shop
+from .routers import admin, auth, shop, telegram
 
-STATUS = {NotFound: 404, Conflict: 409, Forbidden: 403}
+STATUS = {NotFound: 404, Conflict: 409, Forbidden: 403, Unauthorized: 401}
 
 
 def create_app(container: Container, cors_origins: list[str] | None = None) -> FastAPI:
@@ -18,7 +18,8 @@ def create_app(container: Container, cors_origins: list[str] | None = None) -> F
                   description="Маркетплейс сладостей Якутия ⇄ Донбасс со сборными отправками")
     app.state.container = container
     if cors_origins:
-        app.add_middleware(CORSMiddleware, allow_origins=cors_origins, allow_methods=["*"], allow_headers=["*"])
+        app.add_middleware(CORSMiddleware, allow_origins=cors_origins, allow_methods=["*"], allow_headers=["*"],
+                           allow_credentials=True)
 
     @app.exception_handler(DomainError)
     async def domain_error(_: Request, e: DomainError):
@@ -29,5 +30,7 @@ def create_app(container: Container, cors_origins: list[str] | None = None) -> F
         return {"ok": True}
 
     app.include_router(shop.router)
+    app.include_router(auth.router)
     app.include_router(admin.router)
+    app.include_router(telegram.router)
     return app

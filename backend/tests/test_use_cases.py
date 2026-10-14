@@ -76,5 +76,5 @@ def test_cancel_only_by_owner_and_before_assembly(uow):
     w = open_wave(uow)
     O.place_order(uow, TODAY, order_cmd(w.id))
     with pytest.raises(Exception):
-        O.cancel_order(uow, TODAY, "СМ-1025", "+7 (900) 111-11-11")
-    assert O.cancel_order(uow, TODAY, "СМ-1025", "89140000001").status == OrderStatus.CANCELLED
+        O.cancel_order(uow, TODAY, "СМ-1025", None, "+7 (900) 111-11-11")
+    assert O.cancel_order(uow, TODAY, "СМ-1025", None, "89140000001").status == OrderStatus.CANCELLED

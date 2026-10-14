@@ -122,6 +122,8 @@ class Product:
     composition: str = ""
     tag: str = ""
     active: bool = True
+    photos: list[str] = field(default_factory=list)  # галерея; первое фото — обложка (photo)
+    created_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -208,6 +210,7 @@ class Order:
     refund_rub: int = 0
     final_delivery_rub: int | None = None
     history: list[OrderEvent] = field(default_factory=list)
+    user_id: int | None = None  # аккаунт покупателя; None — заказ без регистрации
 
     @property
     def code(self) -> str:
@@ -222,3 +225,23 @@ class Order:
             return
         self.status = status
         self.history.append(OrderEvent(status, on, note))
+
+
+class Role(StrEnum):
+    ADMIN = "admin"
+    CUSTOMER = "customer"
+
+
+@dataclass
+class User:
+    id: int | None
+    role: Role
+    phone: str
+    name: str
+    password_hash: str
+    email: str | None = None
+    tg_chat_id: int | None = None
+    tg_link_token: str | None = None
+    failed_logins: int = 0
+    locked_until: datetime | None = None
+    created_at: datetime | None = None
