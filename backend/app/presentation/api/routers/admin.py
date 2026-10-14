@@ -107,7 +107,7 @@ def telegram_setup(c: Container = Depends(container)):
     if not c.bot or not c.bot.enabled:
         raise DomainError("Не задан TELEGRAM_BOT_TOKEN")
     try:
-        name = c.bot.set_webhook(f"{c.api_url}/api/telegram/webhook", c.webhook_secret)
+        name = c.bot.setup(c.webhook_url, c.webhook_secret, c.site_url)
     except Exception as e:
         raise DomainError(f"Telegram не принял настройку: {e}") from e
     return S.BotOut(username=name)
@@ -115,4 +115,5 @@ def telegram_setup(c: Container = Depends(container)):
 
 @router.get("/telegram", response_model=S.BotOut)
 def telegram_info(c: Container = Depends(container)):
+    c.ensure_bot()
     return S.BotOut(username=c.bot.username() if c.bot else None)

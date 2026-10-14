@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hmac
+from html import escape
 
 from fastapi import APIRouter, Body, Depends, Header, HTTPException
 
@@ -26,8 +27,11 @@ def webhook(update: dict = Body(default_factory=dict), c: Container = Depends(co
     token = text.split(maxsplit=1)[1] if " " in text else ""
     user = auth.link_telegram(u, token, int(chat))
     if user:
-        c.notifier.send(chat, f"Готово, {user.name}! Сюда будут приходить уведомления о заказах «Сладкого моста».")
+        text = f"Готово, {escape(user.name)}! Сюда будут приходить уведомления о заказах «Сладкого моста»."
+    elif auth.by_telegram(u, int(chat)):
+        text = "С возвращением! Уведомления о заказах приходят в этот чат."
     else:
-        c.notifier.send(chat, "Чтобы получать уведомления, нажмите «Подключить Telegram» в личном кабинете "
-                              f"на сайте: {c.site_url}/orders")
+        text = ("Сладости Якутии и Донбасса — в одном магазине. Откройте его кнопкой ниже: войдите или "
+                "зарегистрируйтесь, и уведомления о заказах будут приходить сюда.")
+    c.notifier.send(int(chat), text, c.site_url, "🍬 Открыть магазин")
     return {"ok": True}

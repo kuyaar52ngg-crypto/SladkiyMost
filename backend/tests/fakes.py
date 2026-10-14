@@ -109,6 +109,10 @@ class MemUsers:
     def by_link_token(self, token):
         return self._find(lambda u: u.tg_link_token == token)
 
+    def by_chat(self, chat_id):
+        found = sorted((u for u in self.data.values() if u.tg_chat_id == chat_id), key=lambda u: u.role == Role.ADMIN)
+        return copy.deepcopy(found[0]) if found else None
+
     def admins(self):
         return [copy.deepcopy(u) for u in self.data.values() if u.role == Role.ADMIN]
 
@@ -133,8 +137,9 @@ class FakeNotifier:
     def __init__(self):
         self.sent = []
 
-    def send(self, chat_id, text):
+    def send(self, chat_id, text, link=None, button="Открыть"):
         self.sent.append((chat_id, text))
+        self.links = getattr(self, "links", []) + [link]
 
 
 class FakeStorage:

@@ -104,11 +104,17 @@ class RegisterIn(BaseModel):
     name: str = Field(max_length=120)
     password: str = Field(max_length=128)
     email: str | None = Field(None, max_length=160)
+    tg_init_data: str = Field("", max_length=4096)  # из Telegram Mini App — сразу привязать Telegram
 
 
 class LoginIn(BaseModel):
     phone: str = Field(max_length=40)
     password: str = Field(max_length=128)
+    tg_init_data: str = Field("", max_length=4096)
+
+
+class TelegramAuthIn(BaseModel):
+    init_data: str = Field(max_length=4096)
 
 
 # ---------------- ответы ----------------
@@ -150,6 +156,7 @@ class UserOut(BaseModel):
     phone: str
     email: str | None
     telegram: bool
+    token: str | None = None  # только для Telegram Mini App: сессия заголовком, если cookie недоступна
 
     @classmethod
     def of(cls, u: User) -> "UserOut":

@@ -245,6 +245,11 @@ class SqlUserRepository:
         r = self.s.scalar(select(UserRow).where(UserRow.tg_link_token == token))
         return _user(r) if r else None
 
+    def by_chat(self, chat_id: int) -> User | None:
+        rows = list(self.s.scalars(select(UserRow).where(UserRow.tg_chat_id == chat_id).order_by(UserRow.id)))
+        rows.sort(key=lambda r: r.role == Role.ADMIN.value)
+        return _user(rows[0]) if rows else None
+
     def admins(self) -> list[User]:
         return [_user(r) for r in self.s.scalars(select(UserRow).where(UserRow.role == Role.ADMIN.value))]
 

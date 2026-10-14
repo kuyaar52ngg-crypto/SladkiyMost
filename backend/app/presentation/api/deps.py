@@ -35,7 +35,7 @@ class Container:
     sessions: Sessions
     storage: ImageStorage
     notifier: Notifier
-    bot: Any = None                     # TelegramBot: имя бота, setWebhook
+    bot: Any = None                     # TelegramBot: имя бота, вебхук, проверка initData Mini App
     site_url: str = "http://localhost:3000"
     api_url: str = "http://localhost:8000"
     admin_phone: str = ""
@@ -44,6 +44,15 @@ class Container:
     cookie_secure: bool = True
     _synced: date | None = None
     _admin_checked: bool = field(default=False)
+
+    @property
+    def webhook_url(self) -> str:
+        return f"{self.api_url}/api/telegram/webhook"
+
+    def ensure_bot(self) -> None:
+        """Вебхук бота регистрируется сам — без ручной настройки после деплоя."""
+        if self.bot and self.bot.enabled:
+            self.bot.ensure_setup(self.webhook_url, self.webhook_secret, self.site_url)
 
 
 def container(request: Request) -> Container:
@@ -76,6 +85,9 @@ def uow(c: Container = Depends(container), d: date = Depends(today)) -> Iterator
 
 def current_user(request: Request, c: Container = Depends(container), u: UnitOfWork = Depends(uow)) -> User | None:
     token = request.cookies.get(SESSION_COOKIE)
+    if not token:  # Telegram Mini App во фрейме (Telegram Web), где cookie недоступна
+        scheme, _, bearer = request.headers.get("authorization", "").partition(" ")
+        token = bearer if scheme.lower() == "bearer" else None
     uid = c.sessions.read(token) if token else None
     return u.users.get(uid) if uid is not None else None
 

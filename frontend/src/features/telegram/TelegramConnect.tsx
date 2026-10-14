@@ -2,6 +2,8 @@
 import { useState } from 'react';
 import { useShop } from '@/features/shop/store';
 import { post } from '@/shared/api/client';
+import type { User } from '@/shared/api/types';
+import { askWriteAccess, loadTelegram } from './miniApp';
 import { cn } from '@/shared/lib/format';
 
 /** Кнопка «Подключить Telegram»: одноразовая ссылка t.me/<бот>?start=<токен>. */
@@ -14,6 +16,17 @@ export function TelegramConnect({ className }: { className?: string }) {
   }
   const connect = async () => {
     setBusy(true);
+    const app = await loadTelegram();
+    if (app?.initData) { // внутри Telegram привязываем без перехода в бота
+      try {
+        await post<User | null>('/api/auth/telegram', { init_data: app.initData });
+        askWriteAccess();
+        await refreshUser();
+        toast('Telegram подключён');
+      } catch (e) { toast((e as Error).message); }
+      finally { setBusy(false); }
+      return;
+    }
     // окно открываем сразу, иначе браузер заблокирует его как всплывающее
     const win = window.open('', '_blank');
     try {

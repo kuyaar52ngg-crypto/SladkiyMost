@@ -1,6 +1,7 @@
 'use client';
 import { useState, type FormEvent } from 'react';
 import { useShop } from '@/features/shop/store';
+import { askWriteAccess, tgInitData } from '@/features/telegram/miniApp';
 import { post } from '@/shared/api/client';
 import type { User } from '@/shared/api/types';
 import { cn } from '@/shared/lib/format';
@@ -24,8 +25,9 @@ export function AuthForm({ mode: initial = 'login', allowRegister = true, onDone
     setBusy(true); setErr('');
     try {
       const u = await post<User>(reg ? '/api/auth/register' : '/api/auth/login',
-        reg ? v : { phone: v.phone, password: v.password });
+        { ...(reg ? v : { phone: v.phone, password: v.password }), tg_init_data: tgInitData() });
       setUser(u);
+      if (u.telegram) askWriteAccess();
       onDone(u);
     } catch (ex) { setErr((ex as Error).message); }
     finally { setBusy(false); }

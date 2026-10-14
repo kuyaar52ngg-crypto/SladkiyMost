@@ -3,6 +3,7 @@
 // Хранится в localStorage; сервер перепроверяет цены и наличие при расчёте и оформлении.
 // Аккаунт (user) — из cookie сессии через /api/auth/me.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { TelegramMiniApp } from '@/features/telegram/TelegramMiniApp';
 import { get } from '@/shared/api/client';
 import type { Meta, Product, ReceiveMethod, RegionId, User } from '@/shared/api/types';
 
@@ -87,6 +88,7 @@ export function ShopProvider({ meta, children }: { meta: Meta; children: ReactNo
 
   return (
     <Ctx.Provider value={value}>
+      <TelegramMiniApp />
       {children}
       {msg && (
         <div role="status" className="fixed bottom-24 left-1/2 z-[200] max-w-[calc(100%-32px)] -translate-x-1/2 rounded-full bg-ink px-5 py-3 text-sm text-white shadow-soft md:bottom-7">

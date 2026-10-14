@@ -98,6 +98,20 @@ def telegram_link_token(uow: UnitOfWork, user_id: int) -> str:
     return user.tg_link_token
 
 
+def attach_telegram(uow: UnitOfWork, user_id: int, chat_id: int) -> User:
+    """Привязка из Telegram Mini App: личный чат с ботом совпадает с id пользователя Telegram."""
+    user = get_user(uow, user_id)
+    if user.tg_chat_id != chat_id:
+        user.tg_chat_id, user.tg_link_token = chat_id, None
+        uow.users.save(user)
+        uow.commit()
+    return user
+
+
+def by_telegram(uow: UnitOfWork, chat_id: int) -> User | None:
+    return uow.users.by_chat(chat_id)
+
+
 def link_telegram(uow: UnitOfWork, token: str, chat_id: int) -> User | None:
     user = uow.users.by_link_token(token) if token else None
     if not user:

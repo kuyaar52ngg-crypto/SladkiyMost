@@ -108,3 +108,51 @@ def test_validation_errors(app):
     c = client(app)
     assert c.post("/api/waves/offers", json={"items": [{"id": "YKT-001", "qty": 1}, {"id": "DNR-001", "qty": 1}]}).status_code == 400
     assert c.get("/api/orders/СМ-99999").status_code == 404
+
+
+def _init_data(token: str, tg_id: int, auth_date: int) -> str:
+    """initData, подписанный так же, как это делает Telegram."""
+    import hashlib
+    import hmac
+    import json
+    from urllib.parse import urlencode
+    fields = {"auth_date": str(auth_date), "query_id": "AAH", "user": json.dumps({"id": tg_id, "first_name": "Анна"})}
+    check = "\n".join(f"{k}={v}" for k, v in sorted(fields.items()))
+    secret = hmac.new(b"WebAppData", token.encode(), hashlib.sha256).digest()
+    return urlencode({**fields, "hash": hmac.new(secret, check.encode(), hashlib.sha256).hexdigest()})
+
+
+def test_telegram_mini_app_login(app):
+    import time
+
+    from app.infrastructure.telegram import TelegramBot
+    bot = TelegramBot("123:test-token")
+    bot._configured = True  # без обращений к Telegram API
+    app.state.container.bot = bot
+    try:
+        now = int(time.time())
+        data = _init_data(bot.token, 777001, now)
+        assert bot.verify_init_data(data)["id"] == 777001
+        assert bot.verify_init_data(data.replace("777001", "777002")) is None      # подделка
+        assert bot.verify_init_data(_init_data(bot.token, 777001, now - 3 * 86400)) is None  # устарел
+
+        tg = client(app)
+        assert tg.post("/api/auth/telegram", json={"init_data": "hash=bad"}).status_code == 401
+        assert tg.post("/api/auth/telegram", json={"init_data": data}).json() is None   # аккаунт ещё не привязан
+
+        # регистрация внутри Mini App привязывает Telegram и возвращает токен для заголовка Authorization
+        r = tg.post("/api/auth/register", json={"phone": "+7 (914) 555-66-77", "name": "Анна",
+                                                "password": "secret123", "tg_init_data": data})
+        assert r.status_code == 201 and r.json()["telegram"] and r.json()["token"]
+        token = r.json()["token"]
+
+        again = client(app)  # новый запуск Mini App: вход без пароля
+        r = again.post("/api/auth/telegram", json={"init_data": data})
+        assert r.json()["phone"] == "+7 (914) 555-66-77" and r.json()["token"]
+
+        headers_only = client(app)  # Telegram Web во фрейме: cookie нет, сессия заголовком
+        assert headers_only.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"}).json()["name"] == "Анна"
+        assert client(app).post("/api/auth/login", json={"phone": "+7 (914) 555-66-77",
+                                                          "password": "secret123"}).json()["token"] is None
+    finally:
+        app.state.container.bot = None
