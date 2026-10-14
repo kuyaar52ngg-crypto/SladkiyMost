@@ -5,6 +5,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useShop } from '@/features/shop/store';
 import { post } from '@/shared/api/client';
 import type { User } from '@/shared/api/types';
+import { cabinetOf } from '@/shared/lib/cabinet';
 import { cn } from '@/shared/lib/format';
 import { Icon } from '@/shared/ui';
 
@@ -21,7 +22,7 @@ function readLink(): Link_ {
   return {};
 }
 
-const home = (u: User) => (u.role === 'admin' ? '/admin' : u.role === 'seller' ? '/seller' : '/account');
+const home = (u: User) => cabinetOf(u).href;
 
 function Request({ linkError }: { linkError?: string }) {
   const [login, setLogin] = useState('');

@@ -27,7 +27,10 @@ export default function AccountLayout({ children }: { children: ReactNode }) {
   const { user, setUser } = useShop();
   const path = usePathname();
   const router = useRouter();
-  useEffect(() => { if (user === null) router.replace(`/login?next=${encodeURIComponent(path)}`); }, [user, path, router]);
+  useEffect(() => {
+    if (user === null) router.replace(`/login?next=${encodeURIComponent(path)}`);
+    else if (user?.role === 'seller') router.replace('/seller');  // у поставщика свой кабинет
+  }, [user, path, router]);
 
   const logout = async () => {
     await post('/api/auth/logout').catch(() => null);
@@ -53,7 +56,7 @@ export default function AccountLayout({ children }: { children: ReactNode }) {
           <button type="button" onClick={logout} className="mt-10 hidden text-[15px] hover:text-accent md:block">Выйти</button>
         </aside>
         <div className="min-w-0 pt-4 md:pt-0">
-          {user ? children : <p className="py-24 text-center text-muted">Загружаем…</p>}
+          {user && user.role !== 'seller' ? children : <p className="py-24 text-center text-muted">Загружаем…</p>}
           <button type="button" onClick={logout} className="btn mt-10 w-full md:hidden">Выйти из кабинета</button>
         </div>
       </div>

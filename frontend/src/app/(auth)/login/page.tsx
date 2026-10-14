@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect } from 'react';
 import { AuthForm } from '@/features/auth/AuthForm';
 import { useShop } from '@/features/shop/store';
+import { afterLogin } from '@/shared/lib/cabinet';
 import { Icon } from '@/shared/ui';
 
 function Login() {
@@ -14,7 +15,7 @@ function Login() {
   const raw = sp.get('next') || '/account';
   const next = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/account';
   const reg = sp.get('mode') === 'register';
-  useEffect(() => { if (user) router.replace(user.role === 'admin' && next === '/account' ? '/admin' : next); }, [user, next, router]);
+  useEffect(() => { if (user) router.replace(afterLogin(user, next)); }, [user, next, router]);
 
   return (
     <main className="mx-auto grid min-h-screen max-w-[1200px] items-start gap-10 px-4 py-6 sm:px-6 md:grid-cols-[1fr_1fr] md:gap-16 md:py-10 lg:py-14">
@@ -34,7 +35,7 @@ function Login() {
         <Link href="/" className="mb-6 inline-flex items-center gap-1.5 text-[13px] text-muted hover:text-accent md:hidden"><Icon name="back" className="size-4" />В магазин</Link>
         <h1 className="font-head text-[32px] font-bold">{reg ? 'Регистрация' : 'Вход'}</h1>
         <p className="mt-2 mb-6 text-[15px] text-muted">{reg ? 'Создайте аккаунт, чтобы сохранять данные для заказов и следить за отправками.' : 'Рады видеть вас снова. Войдите, чтобы посмотреть свои заказы и детали доставки.'}</p>
-        <AuthForm key={reg ? 'r' : 'l'} mode={reg ? 'register' : 'login'} next={next} onDone={(u) => router.replace(u.role === 'admin' && next === '/account' ? '/admin' : next)} />
+        <AuthForm key={reg ? 'r' : 'l'} mode={reg ? 'register' : 'login'} next={next} onDone={(u) => router.replace(afterLogin(u, next))} />
         {!reg && (
           <div className="mt-8">
             <p className="mb-3 text-[13px] font-semibold">Для поставщиков и сотрудников</p>

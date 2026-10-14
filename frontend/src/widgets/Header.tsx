@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useShop } from '@/features/shop/store';
+import { cabinetOf } from '@/shared/lib/cabinet';
 import { cn } from '@/shared/lib/format';
 import { Icon } from '@/shared/ui';
 import { Logo } from './Logo';
@@ -27,7 +28,7 @@ export function Header() {
           </nav>
           <div className="flex items-center gap-5 text-[13px]">
             <Link href="/catalog?focus=1" aria-label="Поиск" className="p-1"><Icon name="search" /></Link>
-            <Link href={user === null ? '/login' : user?.role === 'admin' ? '/admin' : '/account'} className="hidden items-center gap-2 p-1 md:flex"><Icon name="user" />{user === null ? 'Войти' : user?.role === 'admin' ? 'Админ-панель' : 'Мои заказы'}</Link>
+            <Link href={user === null ? '/login' : cabinetOf(user).href} className="hidden items-center gap-2 p-1 md:flex"><Icon name="user" />{user === null ? 'Войти' : cabinetOf(user).title}</Link>
             <Link href="/cart" aria-label={`Корзина: ${count}`} className="flex items-center gap-2 p-1">
               <Icon name="bag" /><span className="font-semibold text-accent">{ready && count ? count : ''}</span>
             </Link>
@@ -40,8 +41,8 @@ export function Header() {
 
 export function TabBar() {
   const path = usePathname();
-  const { count } = useShop();
-  const tabs = [['/catalog', 'grid', 'Каталог'], ['/favorites', 'heart', 'Избранное'], ['/cart', 'bag', 'Корзина'], ['/account', 'user', 'Кабинет']] as const;
+  const { count, user } = useShop();
+  const tabs = [['/catalog', 'grid', 'Каталог'], ['/favorites', 'heart', 'Избранное'], ['/cart', 'bag', 'Корзина'], [cabinetOf(user).href, 'user', 'Кабинет']] as const;
   return (
     <nav aria-label="Навигация магазина" className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-4 border-t border-line bg-white px-1 pt-2 pb-[calc(8px+env(safe-area-inset-bottom,0px))] md:hidden">
       {tabs.map(([href, icon, t]) => (
