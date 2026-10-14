@@ -73,10 +73,12 @@ class CancelIn(BaseModel):
 
 class OrderStatusIn(BaseModel):
     status: OrderStatus
+    note: str = Field("", max_length=300)  # причина изменения — попадает в историю заказа
 
 
 class WaveStatusIn(BaseModel):
     status: WaveStatus
+    note: str = Field("", max_length=300)
 
 
 class ProductIn(BaseModel):

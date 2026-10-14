@@ -31,7 +31,7 @@ def wave_list(u: UnitOfWork = Depends(uow), d: date = Depends(today)):
 @router.post("/waves/{wave_id}/status", response_model=S.WaveOut)
 def wave_status(wave_id: str, body: S.WaveStatusIn, u: UnitOfWork = Depends(uow), d: date = Depends(today),
                 c: Container = Depends(container)):
-    w = waves.change_wave_status(u, wave_id, body.status, d, "Изменено администратором")
+    w = waves.change_wave_status(u, wave_id, body.status, d, body.note.strip() or "Изменено администратором")
     notify.wave_status_changed(u, c.notifier, w, c.site_url)
     return S.WaveOut.of(waves.get_wave_view(u, d, wave_id))
 
@@ -95,7 +95,7 @@ def ticket_status(number: int, body: S.TicketStatusIn, admin: User = Depends(req
 def order_status(code: str, body: S.OrderStatusIn, u: UnitOfWork = Depends(uow), d: date = Depends(today),
                  c: Container = Depends(container)):
     before = orders.get_order(u, code).status
-    o = orders.change_order_status(u, d, code, body.status)
+    o = orders.change_order_status(u, d, code, body.status, body.note)
     if o.status != before:
         notify.order_status_changed(u, c.notifier, o, c.site_url)
     return _order_out(u, d, o)

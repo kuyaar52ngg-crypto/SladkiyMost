@@ -1,10 +1,11 @@
 'use client';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { AdminHead, paginate, Pager, Panel } from '@/features/admin/ui';
 import { useShop } from '@/features/shop/store';
 import { ImageUploader } from '@/features/upload/ImageUploader';
 import { del, get, post, put } from '@/shared/api/client';
 import type { Product, RegionId } from '@/shared/api/types';
-import { rub } from '@/shared/lib/format';
+import { cn, rub } from '@/shared/lib/format';
 import { Empty, Icon, Photo } from '@/shared/ui';
 
 type Draft = Omit<Product, 'id' | 'photo'> & { id?: string };
@@ -14,6 +15,11 @@ export default function ProductsAdmin() {
   const [list, setList] = useState<Product[] | null>(null);
   const [edit, setEdit] = useState<Draft | null>(null);
   const [err, setErr] = useState('');
+  const [q, setQ] = useState('');
+  const [pub, setPub] = useState('');
+  const [region, setRegion] = useState('');
+  const [category, setCategory] = useState('');
+  const [page, setPage] = useState(1);
   const load = useCallback(() => get<Product[]>('/api/admin/products').then(setList), []);
   useEffect(() => { load(); }, [load]);
 
@@ -43,29 +49,49 @@ export default function ProductsAdmin() {
   if (!list) return <p className="text-muted">Загружаем…</p>;
   const f = <K extends keyof Draft>(k: K, v: Draft[K]) => setEdit((x) => (x ? { ...x, [k]: v } : x));
 
+  const term = q.trim().toLowerCase();
+  const shown = list.filter((p) => (!pub || (pub === 'on') === p.active) && (!region || p.region === region) && (!category || p.category === category)
+    && (!term || `${p.id} ${p.name} ${p.manufacturer}`.toLowerCase().includes(term)));
+  const { rows, pages, page: cur } = paginate(shown, page, 12);
+  const on = list.filter((p) => p.active).length;
   return (
     <>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-[13px] text-muted">{list.filter((p) => p.active).length} активных · {list.length} всего</p>
+      <AdminHead title="Общий каталог товаров" text="Товары, фото и публикация на витрине. Скрытый товар не виден покупателям, но остаётся в истории заказов.">
         <button className="btn btn-primary" onClick={() => setEdit(blank)}><Icon name="box" className="size-4" />Добавить товар</button>
+      </AdminHead>
+      <Panel>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="field"><span className="label">Поиск по товарам</span><input className="input" placeholder="Название, артикул, производитель" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} /></label>
+          <label className="field"><span className="label">Публикация</span><select className="select" value={pub} onChange={(e) => { setPub(e.target.value); setPage(1); }}><option value="">Все</option><option value="on">Опубликованы</option><option value="off">Скрыты</option></select></label>
+          <label className="field"><span className="label">Регион</span><select className="select" value={region} onChange={(e) => { setRegion(e.target.value); setPage(1); }}><option value="">Все регионы</option>{Object.entries(meta.regions).map(([k, r]) => <option key={k} value={k}>{r.name}</option>)}</select></label>
+          <label className="field"><span className="label">Категория</span><select className="select" value={category} onChange={(e) => { setCategory(e.target.value); setPage(1); }}><option value="">Все категории</option>{meta.categories.map((c) => <option key={c}>{c}</option>)}</select></label>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2"><button type="button" className="pill pill-soft" onClick={() => { setQ(''); setPub(''); setRegion(''); setCategory(''); setPage(1); }}>Сбросить фильтры</button></div>
+      </Panel>
+      <div className="mt-5 flex flex-wrap gap-2">
+        {([['', `Все · ${list.length}`], ['on', `Опубликованы · ${on}`], ['off', `Скрыты · ${list.length - on}`]] as const).map(([k, t]) => <button key={k || 'all'} type="button" className={cn('pill', pub !== k && 'pill-soft')} onClick={() => { setPub(k); setPage(1); }}>{t}</button>)}
       </div>
-      {!list.length ? <Empty title="Товаров пока нет" text="Добавьте первую сладость — она сразу появится в каталоге и на главной." /> : (
-      <div className="overflow-x-auto rounded-card border border-line">
-        <table className="w-full min-w-[900px] text-sm">
-          <thead className="bg-soft text-left text-[13px]"><tr>{['', 'Артикул', 'Название', 'Регион', 'Категория', 'Масса', 'Цена', 'Термо', ''].map((h, i) => <th key={i} className="px-4 py-3.5 font-semibold">{h}</th>)}</tr></thead>
-          <tbody>{list.map((p) => (
-            <tr key={p.id} className={`border-t border-line [&>td]:px-4 [&>td]:py-3 ${p.active ? '' : 'opacity-50'}`}>
-              <td><div className="relative h-10.5 w-12 overflow-hidden rounded-md bg-soft"><Photo src={p.photo} alt="" sizes="48px" /></div></td>
-              <td className="text-[13px]">{p.id}</td>
-              <td><b className="text-[13px]">{p.name}</b><div className="text-xs text-muted">{p.manufacturer}</div></td>
-              <td>{meta.regions[p.region].name}</td><td className="text-[13px]">{p.category}</td>
-              <td className="whitespace-nowrap">{p.weight_g} г</td><td className="whitespace-nowrap">{rub(p.price_rub)}</td>
-              <td>{p.temp_sensitive ? <span className="tag tag-warn">да</span> : 'нет'}</td>
-              <td className="whitespace-nowrap"><button className="btn btn-sm" onClick={() => open(p)}>Изменить</button> <button className="btn btn-sm btn-ghost" onClick={() => setActive(p, !p.active)}>{p.active ? 'Скрыть' : 'Вернуть'}</button> <button className="btn btn-sm btn-ghost text-accent" onClick={() => remove(p)}>Удалить</button></td>
+      {!list.length ? <div className="mt-4"><Empty title="Товаров пока нет" text="Добавьте первую сладость — она сразу появится в каталоге и на главной." /></div> : (
+      <div className="mt-4 overflow-x-auto">
+        <table className="table-x min-w-[860px]">
+          <thead><tr><th>Фото / название</th><th>Производитель / регион</th><th>Категория / цена</th><th>Публикация / действия</th></tr></thead>
+          <tbody>{rows.map((p) => (
+            <tr key={p.id}>
+              <td><div className="flex items-center gap-3"><div className="relative size-12 shrink-0 overflow-hidden rounded-md bg-soft"><Photo src={p.photo} alt="" sizes="48px" /></div>
+                <div><b className="text-sm">{p.name}</b><span className="block text-xs text-muted">{p.id} · {p.weight_g} г{p.temp_sensitive && ' · термо'}</span></div></div></td>
+              <td>{p.manufacturer || '—'}<span className="block text-xs text-muted">{meta.regions[p.region].name}</span></td>
+              <td>{p.category}<b className="block">{rub(p.price_rub)}</b></td>
+              <td><span className={cn('pill', p.active ? 'pill-soft' : 'pill-fill')}>{p.active ? 'Опубликован' : 'Скрыт'}</span>
+                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[13px]">
+                  <button type="button" className="text-accent" onClick={() => open(p)}>Изменить</button>
+                  <button type="button" className="text-accent" onClick={() => setActive(p, !p.active)}>{p.active ? 'Скрыть' : 'Опубликовать'}</button>
+                  <button type="button" className="text-muted hover:text-accent" onClick={() => remove(p)}>Удалить</button>
+                </div></td>
             </tr>
-          ))}</tbody>
+          ))}{!rows.length && <tr><td colSpan={4} className="text-muted">Товаров не найдено</td></tr>}</tbody>
         </table>
       </div>)}
+      <Pager page={cur} pages={pages} total={shown.length} shown={rows.length} onPage={setPage} />
       {edit && (
         <div className="fixed inset-0 z-[100] grid place-items-center bg-ink/35 p-4" onClick={(e) => e.target === e.currentTarget && setEdit(null)}>
           <form onSubmit={save} role="dialog" aria-modal="true" className="max-h-[90vh] w-full max-w-[640px] space-y-3 overflow-auto rounded-card bg-white p-6">

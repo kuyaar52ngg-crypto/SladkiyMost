@@ -192,9 +192,9 @@ def cancel_order(uow: UnitOfWork, today: date, code: str, viewer: User | None, p
     return o
 
 
-def change_order_status(uow: UnitOfWork, today: date, code: str, status: OrderStatus) -> Order:
+def change_order_status(uow: UnitOfWork, today: date, code: str, status: OrderStatus, note: str = "") -> Order:
     o = get_order(uow, code)
-    o.move_to(status, today, "Изменено администратором")
+    o.move_to(status, today, (note or "").strip()[:300] or "Изменено администратором")
     uow.orders.save(o)
     uow.commit()
     return o
