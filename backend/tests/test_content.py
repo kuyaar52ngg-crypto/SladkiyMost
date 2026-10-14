@@ -114,3 +114,50 @@ def test_password_reset_by_telegram_and_email(uow):
         auth.reset_password(uow, H, mail, tokens, "from-email-pass", access_token="garbage")
     with pytest.raises(DomainError):
         auth.reset_password(uow, H, mail, tokens, "short", token=token)
+
+
+def test_waves_create_edit_delete(uow):
+    from datetime import timedelta
+
+    from app.application import waves as W
+    from app.domain.entities import Direction, OrderStatus, WaveStatus
+
+    d = TODAY + timedelta(days=9)
+    w = W.create_wave(uow, TODAY, Direction.YKT_DNR, W.WaveData(departure=d, cutoff=d - timedelta(days=2)))
+    from app.domain import logistics as L
+    assert w.status == WaveStatus.COLLECTING and (w.arrival_from, w.arrival_to, w.off_season) == L.arrival_window(d)
+    with pytest.raises(Conflict):
+        W.create_wave(uow, TODAY, Direction.YKT_DNR, W.WaveData(departure=d, cutoff=d))
+    with pytest.raises(DomainError):
+        W.create_wave(uow, TODAY, Direction.DNR_YKT, W.WaveData(departure=d, cutoff=d + timedelta(days=1)))
+
+    # правка дат и загрузки; срок приёма в прошлом — приём закрывается
+    w = W.update_wave(uow, TODAY, w.id, W.WaveData(d, d - timedelta(days=1), d + timedelta(days=12),
+                                                   d + timedelta(days=15), base_load_kg=40))
+    assert (w.arrival_to, w.base_load_kg) == (d + timedelta(days=15), 40)
+    assert W.get_wave_view(uow, TODAY, w.id).load_kg == 40
+    w = W.update_wave(uow, TODAY, w.id, W.WaveData(d, TODAY - timedelta(days=1)))
+    assert w.status == WaveStatus.CLOSED
+
+    # удаление: с заказами — только с переносом в партию того же направления
+    o = place(uow)
+    src = o.wave_id
+    with pytest.raises(Conflict):
+        W.delete_wave(uow, TODAY, src)
+    other = next(x.wave.id for x in W.list_waves(uow, TODAY, Direction.YKT_DNR, only_open=True) if x.wave.id != src)
+    wrong = W.list_waves(uow, TODAY, Direction.DNR_YKT, only_open=True)[0].wave.id
+    with pytest.raises(DomainError):
+        W.delete_wave(uow, TODAY, src, move_to=wrong)
+    assert W.delete_wave(uow, TODAY, src, move_to=other) == 1
+    moved = uow.orders.get(o.number)
+    assert moved.wave_id == other and moved.status != OrderStatus.CANCELLED and "отменена" in moved.history[-1].note
+    assert uow.waves.get(src) is None
+    # удалённая партия расписания не создаётся заново
+    W.sync_schedule(uow, TODAY)
+    assert uow.waves.get(src) is None
+
+    # без автосоздания расписание не пополняется
+    content.save_platform_settings(uow, {**content.platform_settings(uow), "waves_auto_schedule": False})
+    before = len(uow.waves.list())
+    W.sync_schedule(uow, TODAY + timedelta(days=60))
+    assert len(uow.waves.list()) == before

@@ -35,6 +35,7 @@ function Platform() {
       </label>
       <div className="mt-3 border-t border-line pt-1">
         <Toggle label="Проверять отзывы перед публикацией" on={s.reviews_premoderation} onChange={(v) => setS({ ...s, reviews_premoderation: v })} />
+        <Toggle label="Создавать сборные партии по расписанию автоматически" on={s.waves_auto_schedule ?? true} onChange={(v) => setS({ ...s, waves_auto_schedule: v })} />
       </div>
       {err && <p role="alert" className="mt-2 text-[13px] text-accent">{err}</p>}
       <button type="button" className="btn btn-primary mt-4" disabled={JSON.stringify(s) === saved} onClick={save}>Сохранить</button>

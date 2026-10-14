@@ -1,11 +1,13 @@
 'use client';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
+import { WaveForm } from '@/features/admin/WaveForm';
 import { useCallback, useEffect, useState } from 'react';
 import { Info, Row } from '@/features/account/parts';
 import { AdminHead, ORDER_ADMIN, orderUrl, Panel, WAVE_PILL } from '@/features/admin/ui';
 import { useShop } from '@/features/shop/store';
-import { get, post } from '@/shared/api/client';
+import { del, get, post } from '@/shared/api/client';
+import { useLive } from '@/shared/lib/live';
 import type { Order, Wave, WaveStatus } from '@/shared/api/types';
 import { cn, fmtDate, fmtRange, kg, rub } from '@/shared/lib/format';
 import { FillBar, Icon } from '@/shared/ui';
@@ -29,11 +31,16 @@ export default function AdminWave() {
   const [note, setNote] = useState('');
   const [checked, setChecked] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [removing, setRemoving] = useState<Wave[] | null>(null);  // партии, куда можно перенести заказы
+  const [moveTo, setMoveTo] = useState('');
+  const router = useRouter();
   const load = useCallback(() => {
     get<Wave>(`/api/admin/waves/${encodeURIComponent(id)}`).then(setW).catch(() => setW(false));
     get<Order[]>(`/api/admin/orders?wave=${encodeURIComponent(id)}`).then(setOrders).catch(() => setOrders([]));
   }, [id]);
   useEffect(load, [load]);
+  useLive(load);
   if (w === null) return <p className="text-muted">Загружаем…</p>;
   if (!w) return <><AdminHead title="Партия не найдена" crumb={[['Сборные партии', '/admin/waves'], [id]]} /><Link className="btn" href="/admin/waves">К партиям</Link></>;
 
@@ -41,6 +48,21 @@ export default function AdminWave() {
   const goods = live.reduce((s, o) => s + o.goods_rub, 0);
   const net = live.reduce((s, o) => s + o.items.reduce((a, i) => a + (i.weight_g * i.qty) / 1000, 0), 0);
   const stage = STAGES.indexOf(w.status);
+  const startRemove = () => {
+    setEditing(false); setMoveTo('');
+    get<Wave[]>('/api/admin/waves')
+      .then((l) => setRemoving(l.filter((x) => x.direction === w.direction && x.id !== w.id && (!live.length || !['arrived', 'done'].includes(x.status)))
+        .sort((a, b) => a.departure.localeCompare(b.departure))))
+      .catch((e) => toast((e as Error).message));
+  };
+  const remove = async () => {
+    setBusy(true);
+    try {
+      const r = await del<{ moved: number }>(`/api/admin/waves/${encodeURIComponent(w.id)}${moveTo ? `?move_to=${encodeURIComponent(moveTo)}` : ''}`);
+      toast(r.moved ? `Партия удалена, заказов перенесено: ${r.moved}` : 'Партия удалена');
+      router.replace('/admin/waves');
+    } catch (e) { toast((e as Error).message); setBusy(false); }
+  };
   const confirm = async () => {
     if (!action || !checked) return;
     setBusy(true);
@@ -51,7 +73,37 @@ export default function AdminWave() {
 
   return (
     <>
-      <AdminHead title={`Партия · ${fmtDate(w.departure)}`} crumb={[['Сборные партии', '/admin/waves'], [`${w.title} · ${fmtDate(w.departure)}`]]} />
+      <AdminHead title={`Партия · ${fmtDate(w.departure)}`} crumb={[['Сборные партии', '/admin/waves'], [`${w.title} · ${fmtDate(w.departure)}`]]}>
+        <div className="flex flex-wrap gap-2">
+          {w.status !== 'done' && !editing && <button type="button" className="btn" onClick={() => { setEditing(true); setRemoving(null); }}>Изменить</button>}
+          {!removing && <button type="button" className="btn" onClick={startRemove}>Удалить</button>}
+        </div>
+      </AdminHead>
+      {editing && (
+        <Panel className="mb-6" title="Изменить партию">
+          <WaveForm wave={w} onCancel={() => setEditing(false)} onSaved={() => { setEditing(false); load(); }} />
+        </Panel>
+      )}
+      {removing && (
+        <Panel className="mb-6" title="Удалить партию?">
+          <p className="text-sm">Партия исчезнет из расписания и со страницы «Сборная доставка» и не будет создана заново автоматически.</p>
+          {orders.length > 0 && (
+            <>
+              <p className="mt-3 text-sm">В партии {live.length} активных заказ(ов){orders.length > live.length ? ` и ${orders.length - live.length} отменённых` : ''} — они будут перенесены вместе с историей, покупатели увидят перенос в заказе.</p>
+              <label className="field mt-4 max-w-md"><span className="label">Перенести заказы в партию</span>
+                <select className="select" value={moveTo} onChange={(e) => setMoveTo(e.target.value)}>
+                  <option value="">Выберите партию</option>
+                  {removing.map((x) => <option key={x.id} value={x.id}>{fmtDate(x.departure)} · {WAVE_PILL[x.status]} · {kg(x.load_kg)}</option>)}
+                </select></label>
+              {!removing.length && <p className="mt-2 text-[13px] text-accent">Нет подходящей партии этого направления — сначала добавьте её.</p>}
+            </>
+          )}
+          <div className="mt-5 flex flex-wrap gap-3">
+            <button type="button" className="btn btn-primary" disabled={busy || (orders.length > 0 && !moveTo)} onClick={remove}>{busy ? 'Удаляем…' : 'Удалить партию'}</button>
+            <button type="button" className="btn" onClick={() => setRemoving(null)}>Отмена</button>
+          </div>
+        </Panel>
+      )}
       <span className={cn('pill', w.status !== 'collecting' && 'pill-soft')}>{WAVE_PILL[w.status]}</span>
 
       <div className="mt-6 grid items-start gap-6 lg:grid-cols-2">

@@ -1,9 +1,10 @@
 'use client';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { AdminHead, ORDER_ADMIN, orderUrl, paginate, Pager, Panel, waveUrl } from '@/features/admin/ui';
 import { useShop } from '@/features/shop/store';
+import { useLive } from '@/shared/lib/live';
 import { get } from '@/shared/api/client';
 import type { Order, OrderStatus } from '@/shared/api/types';
 import { cn, rub } from '@/shared/lib/format';
@@ -22,7 +23,9 @@ function OrdersAdmin() {
   const [dir, setDir] = useState('');
   const [period, setPeriod] = useState('');
   const [page, setPage] = useState(1);
-  useEffect(() => { get<Order[]>(`/api/admin/orders${wave ? `?wave=${encodeURIComponent(wave)}` : ''}`).then(setList).catch(() => setList([])); }, [wave]);
+  const load = useCallback(() => { get<Order[]>(`/api/admin/orders${wave ? `?wave=${encodeURIComponent(wave)}` : ''}`).then(setList).catch(() => setList([])); }, [wave]);
+  useEffect(load, [load]);
+  useLive(load);
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();

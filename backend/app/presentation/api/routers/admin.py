@@ -38,6 +38,29 @@ def wave_status(wave_id: str, body: S.WaveStatusIn, u: UnitOfWork = Depends(uow)
     return S.WaveOut.of(waves.get_wave_view(u, d, wave_id))
 
 
+def _wave_data(b: S.WaveIn) -> waves.WaveData:
+    return waves.WaveData(b.departure, b.cutoff, b.arrival_from, b.arrival_to, b.base_load_kg)
+
+
+@router.post("/waves", response_model=S.WaveOut, status_code=201)
+def wave_create(body: S.WaveIn, u: UnitOfWork = Depends(uow), d: date = Depends(today)):
+    if body.direction is None:
+        raise DomainError("Выберите направление")
+    w = waves.create_wave(u, d, body.direction, _wave_data(body))
+    return S.WaveOut.of(waves.get_wave_view(u, d, w.id))
+
+
+@router.put("/waves/{wave_id}", response_model=S.WaveOut)
+def wave_update(wave_id: str, body: S.WaveIn, u: UnitOfWork = Depends(uow), d: date = Depends(today)):
+    waves.update_wave(u, d, wave_id, _wave_data(body))
+    return S.WaveOut.of(waves.get_wave_view(u, d, wave_id))
+
+
+@router.delete("/waves/{wave_id}")
+def wave_delete(wave_id: str, move_to: str | None = None, u: UnitOfWork = Depends(uow), d: date = Depends(today)):
+    return {"ok": True, "moved": waves.delete_wave(u, d, wave_id, move_to)}
+
+
 @router.get("/orders", response_model=list[S.OrderOut])
 def order_list(status: OrderStatus | None = None, wave: str | None = None,
                u: UnitOfWork = Depends(uow), d: date = Depends(today)):

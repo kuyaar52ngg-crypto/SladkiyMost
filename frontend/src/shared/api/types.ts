@@ -16,7 +16,7 @@ export interface Wave {
   id: string; direction: DirectionId; title: string; departure: string; cutoff: string;
   arrival_from: string; arrival_to: string; off_season: boolean; status: WaveStatus; status_title: string;
   load_kg: number; fill: number; rate: number; discount_percent: number; open: boolean;
-  days_left: number; orders_count: number; final_rate: number | null; final_load_kg: number | null;
+  days_left: number; orders_count: number; final_rate: number | null; final_load_kg: number | null; base_load_kg: number;
 }
 
 export interface Quote {
@@ -68,7 +68,7 @@ export interface SiteContent {
   contacts: { phone: string; email: string; telegram: string; hours: string };
   footer: { tagline: string };
 }
-export interface PlatformSettings { orders_open: boolean; orders_closed_message: string; min_order_rub: number; reviews_premoderation: boolean }
+export interface PlatformSettings { orders_open: boolean; orders_closed_message: string; min_order_rub: number; reviews_premoderation: boolean; waves_auto_schedule: boolean }
 export interface Category { id: number; name: string; position: number; active: boolean; products: number }
 export type ReviewStatus = 'pending' | 'published' | 'rejected';
 export interface Review {

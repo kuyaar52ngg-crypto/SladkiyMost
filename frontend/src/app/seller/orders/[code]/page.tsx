@@ -8,6 +8,7 @@ import { PREP_NEXT } from '@/features/seller/context';
 import { units } from '@/features/seller/data';
 import { useShop } from '@/features/shop/store';
 import { get, post } from '@/shared/api/client';
+import { useLive } from '@/shared/lib/live';
 import type { ShopOrder } from '@/shared/api/types';
 import { cn, fmtDate, kg, rub } from '@/shared/lib/format';
 import { Icon } from '@/shared/ui';
@@ -23,6 +24,7 @@ export default function SellerOrder() {
   const [busy, setBusy] = useState(false);
   const load = useCallback(() => { get<ShopOrder>(`/api/seller/orders/${encodeURIComponent(code)}`).then(setV).catch(() => setV(false)); }, [code]);
   useEffect(load, [load]);
+  useLive(load);
   if (v === null) return <p className="text-muted">Загружаем…</p>;
   if (!v) return <><AdminHead title="Заказ не найден" crumb={[['Кабинет поставщика', '/seller'], ['Заказы', '/seller/orders'], [code]]} /><Link className="btn" href="/seller/orders">К заказам</Link></>;
   const o = v.order;

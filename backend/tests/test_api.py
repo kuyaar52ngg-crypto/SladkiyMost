@@ -248,3 +248,22 @@ def test_admin_directories_and_password_reset(app):
     assert r.status_code == 200 and r.json()["name"] == "Вера"
     assert client(app).post("/api/auth/login", json={"phone": "+7 (914) 505-16-17", "password": "new-pass-123"}).status_code == 200
     assert guest.post("/api/auth/reset/confirm", json={"password": "new-pass-123", "token": "bad"}).status_code == 401
+
+
+def test_admin_waves_crud_and_live(app):
+    admin, guest = client(app), client(app)
+    admin.post("/api/auth/login", json=ADMIN)
+    rev0 = guest.get("/api/live").json()["rev"]
+    r = admin.post("/api/admin/waves", json={"direction": "YKT-DNR", "departure": "2026-10-30", "cutoff": "2026-10-28"})
+    assert r.status_code == 201 and r.json()["open"] and r.json()["base_load_kg"] == 0
+    wid = r.json()["id"]
+    rev1 = guest.get("/api/live").json()["rev"]
+    assert rev1 > rev0
+    assert any(w["id"] == wid for w in guest.get("/api/waves", params={"only_open": True}).json())
+    r = admin.put(f"/api/admin/waves/{wid}", json={"departure": "2026-10-30", "cutoff": "2026-10-29", "base_load_kg": 25})
+    assert r.json()["cutoff"] == "2026-10-29" and r.json()["load_kg"] == 25
+    assert admin.put(f"/api/admin/waves/{wid}", json={"departure": "2026-10-30", "cutoff": "2026-11-02"}).status_code == 400
+    assert guest.delete(f"/api/admin/waves/{wid}").status_code == 401
+    assert admin.delete(f"/api/admin/waves/{wid}").json()["ok"]
+    assert admin.get(f"/api/admin/waves/{wid}").status_code == 404
+    assert guest.get("/api/live").json()["rev"] >= rev1

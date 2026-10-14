@@ -3,6 +3,7 @@ import { connection } from 'next/server';
 import { Inter, Manrope, Montserrat_Alternates } from 'next/font/google';
 import { ShopProvider } from '@/features/shop/store';
 import { getMeta } from '@/shared/api/meta';
+import { LiveRefresh } from '@/shared/lib/live';
 import type { Meta } from '@/shared/api/types';
 import './globals.css';
 
@@ -24,6 +25,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="ru" className={`${inter.variable} ${manrope.variable} ${mont.variable}`}>
       <body>
+        <LiveRefresh />
         {meta ? <ShopProvider meta={meta}>{children}</ShopProvider> : (
           <main className="container-x py-24 text-center">
             <h1 className="h2">Сервис временно недоступен</h1>

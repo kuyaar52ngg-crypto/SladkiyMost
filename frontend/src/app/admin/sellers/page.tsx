@@ -4,6 +4,7 @@ import { Info } from '@/features/account/parts';
 import { AdminHead, Panel } from '@/features/admin/ui';
 import { useShop } from '@/features/shop/store';
 import { get, post } from '@/shared/api/client';
+import { useLive } from '@/shared/lib/live';
 import type { RegionId, Shop, ShopStatus } from '@/shared/api/types';
 import { cn } from '@/shared/lib/format';
 
@@ -22,6 +23,7 @@ export default function AdminSellers() {
   const [checked, setChecked] = useState(false);
   const load = useCallback(() => { get<Shop[]>('/api/admin/shops').then((l) => { setList(l); setSel((s) => (s ? l.find((x) => x.id === s.id) || null : null)); }).catch(() => setList([])); }, []);
   useEffect(load, [load]);
+  useLive(load);
   const shown = (list || []).filter((s) => (!st || s.status === st) && (!q.trim() || `${s.name} ${s.contact_name} ${s.login_phone}`.toLowerCase().includes(q.trim().toLowerCase())));
 
   const create = async (e: FormEvent) => {

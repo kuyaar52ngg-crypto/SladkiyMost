@@ -7,6 +7,7 @@ import { OrderDetails } from '@/features/account/OrderDetails';
 import { AccountHead } from '@/features/account/page';
 import { useShop } from '@/features/shop/store';
 import { get, post } from '@/shared/api/client';
+import { useLive } from '@/shared/lib/live';
 import type { Order } from '@/shared/api/types';
 
 export default function AccountOrder() {
@@ -16,6 +17,7 @@ export default function AccountOrder() {
   const [orders] = useOrders();
   const load = useCallback(() => { get<Order>(`/api/orders/${encodeURIComponent(code)}`).then(setO).catch(() => setO(false)); }, [code]);
   useEffect(load, [load]);
+  useLive(load);
   if (o === null) return <p className="text-muted">Загружаем…</p>;
   if (!o) {
     return (

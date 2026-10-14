@@ -168,6 +168,7 @@ SETTINGS_DEFAULTS: dict = {
     "orders_closed_message": "Приём заказов временно приостановлен. Загляните чуть позже!",
     "min_order_rub": 0,
     "reviews_premoderation": True,
+    "waves_auto_schedule": True,   # новые партии создаются сами по расписанию (раз в 14 дней)
 }
 
 

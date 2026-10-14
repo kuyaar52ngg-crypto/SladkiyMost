@@ -60,6 +60,9 @@ class MemWaves:
     def save(self, w):
         self.data[w.id] = copy.deepcopy(w)
 
+    def delete(self, wid):
+        self.data.pop(wid, None)
+
     def orders_weight(self):
         out = {}
         for o in self.orders.data.values():

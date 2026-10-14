@@ -4,6 +4,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useState, type FormEvent } from 'react';
 import { OrderDetails } from '@/features/account/OrderDetails';
 import { useShop } from '@/features/shop/store';
+import { useLive } from '@/shared/lib/live';
 import { ApiError, get, post } from '@/shared/api/client';
 import type { Order } from '@/shared/api/types';
 import { Crumbs, Empty } from '@/shared/ui';
@@ -37,6 +38,7 @@ function OrderView() {
       else setO(false);
     }), [code, p]);
   useEffect(() => { if (user !== undefined) load(); }, [load, user]);
+  useLive(() => { if (user !== undefined) load(); });
   if (o === null) return <div className="container-x py-24 text-center text-muted">Загружаем…</div>;
   if (o === 'locked') return <PhoneGate code={code} error={gateErr} onPhone={setPhone} />;
   if (!o) return <div className="container-x py-10"><Empty title="Заказ не найден" text="Проверьте номер заказа."><Link className="btn" href="/orders">К заказам</Link></Empty></div>;

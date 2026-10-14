@@ -15,7 +15,9 @@ from app.domain.entities import (
     Wave,
     WaveStatus,
 )
-from app.domain.errors import NotFound
+from app.domain.errors import Conflict, DomainError, NotFound
+
+from . import content
 
 from .ports import UnitOfWork
 
@@ -49,8 +51,9 @@ def sync_schedule(uow: UnitOfWork, today: date, p: L.LogisticsPolicy = L.DEFAULT
 
     Возвращает волны, приём в которые закрыт автоматически.
     """
-    existing = uow.waves.existing_ids()
-    for direction in Direction:
+    existing = uow.waves.existing_ids() | deleted_ids(uow)
+    auto = content.platform_settings(uow)["waves_auto_schedule"]
+    for direction in Direction if auto else ():
         for w in L.schedule(direction, today - timedelta(days=56), today + timedelta(days=42), p):
             if w.id in existing:
                 continue
@@ -149,3 +152,111 @@ def _apply_status(uow: UnitOfWork, w: Wave, status: WaveStatus, today: date, not
             o.move_to(target, today, f"Волна: {status.value}")
         uow.orders.save(o)
     uow.waves.save(w)
+
+
+# ---------------- ручное ведение партий (админка) ----------------
+DELETED_KEY = "waves_deleted"
+
+
+def deleted_ids(uow: UnitOfWork) -> set[str]:
+    """Партии расписания, удалённые администратором, — их не нужно создавать заново."""
+    return set((uow.settings.get(DELETED_KEY) or {}).get("ids", []))
+
+
+def _remember_deleted(uow: UnitOfWork, ids: set[str]) -> None:
+    uow.settings.put(DELETED_KEY, {"ids": sorted(ids)})
+
+
+@dataclass(frozen=True)
+class WaveData:
+    departure: date
+    cutoff: date
+    arrival_from: date | None = None   # не указано — по нормативу доставки
+    arrival_to: date | None = None
+    base_load_kg: float = 0.0
+
+
+def _apply_data(w: Wave, data: WaveData, p: L.LogisticsPolicy) -> None:
+    a_from, a_to, off = L.arrival_window(data.departure, p)
+    a_from, a_to = data.arrival_from or a_from, data.arrival_to or a_to
+    if data.cutoff > data.departure:
+        raise DomainError("Приём заказов должен закончиться не позже отправки")
+    if a_from < data.departure:
+        raise DomainError("Прибытие не может быть раньше отправки")
+    if a_to < a_from:
+        raise DomainError("Конец окна прибытия — не раньше его начала")
+    if (a_to - data.departure).days > 120:
+        raise DomainError("Слишком долгая доставка: проверьте даты прибытия")
+    if not 0 <= data.base_load_kg <= p.max_load_kg:
+        raise DomainError(f"Загрузка вне системы — от 0 до {p.max_load_kg} кг")
+    w.departure, w.cutoff, w.arrival_from, w.arrival_to = data.departure, data.cutoff, a_from, a_to
+    w.off_season = off
+    w.base_load_kg = round(data.base_load_kg, 1)
+
+
+def create_wave(uow: UnitOfWork, today: date, direction: Direction, data: WaveData,
+                p: L.LogisticsPolicy = L.DEFAULT_POLICY) -> Wave:
+    wid = L.wave_id(direction, data.departure)
+    if uow.waves.get(wid):
+        raise Conflict("Партия этого направления с такой датой отправки уже есть")
+    if data.departure < today:
+        raise DomainError("Дата отправки уже прошла")
+    w = Wave(wid, direction, data.departure, data.cutoff, data.departure, data.departure, False)
+    _apply_data(w, data, p)
+    w.status = WaveStatus.COLLECTING if today <= w.cutoff else WaveStatus.CLOSED
+    uow.waves.add(w)
+    deleted = deleted_ids(uow)
+    if wid in deleted:
+        _remember_deleted(uow, deleted - {wid})
+    uow.commit()
+    return w
+
+
+def update_wave(uow: UnitOfWork, today: date, wave_id: str, data: WaveData,
+                p: L.LogisticsPolicy = L.DEFAULT_POLICY) -> Wave:
+    """Даты и загрузка вне системы. Направление не меняется — оно задаёт, какие заказы попадают в партию."""
+    w = uow.waves.get(wave_id)
+    if not w:
+        raise NotFound("Волна не найдена")
+    if w.status == WaveStatus.DONE:
+        raise Conflict("Завершённую партию изменить нельзя")
+    _apply_data(w, data, p)
+    if w.status == WaveStatus.COLLECTING and today > w.cutoff:
+        _apply_status(uow, w, WaveStatus.CLOSED, today, "Изменён срок приёма", p)
+    uow.waves.save(w)
+    uow.commit()
+    return w
+
+
+def delete_wave(uow: UnitOfWork, today: date, wave_id: str, move_to: str | None = None) -> int:
+    """Удаляет партию. Заказы (если есть) переносятся в другую партию того же направления.
+
+    Возвращает число перенесённых активных заказов.
+    """
+    w = uow.waves.get(wave_id)
+    if not w:
+        raise NotFound("Волна не найдена")
+    orders = uow.orders.list(wave_id=w.id)
+    active = [o for o in orders if o.status != OrderStatus.CANCELLED]
+    if orders:
+        if not move_to:
+            if active:
+                raise Conflict(f"В партии {len(active)} заказ(ов) — выберите партию, куда их перенести")
+            raise Conflict("В партии есть отменённые заказы — выберите партию, куда перенести их историю")
+        target = uow.waves.get(move_to)
+        if not target or target.id == w.id:
+            raise NotFound("Партия для переноса не найдена")
+        if target.direction != w.direction:
+            raise DomainError("Заказы можно перенести только в партию того же направления")
+        if active and target.status in (WaveStatus.DONE, WaveStatus.ARRIVED):
+            raise DomainError("Нельзя перенести заказы в прибывшую или завершённую партию")
+        for o in orders:
+            o.wave_id = target.id
+            if o.status != OrderStatus.CANCELLED:
+                o.history.append(OrderEvent(o.status, today, f"Перенесён в партию {target.departure:%d.%m}: "
+                                                             "прежняя партия отменена"))
+            uow.orders.save(o)
+    uow.waves.delete(w.id)
+    _remember_deleted(uow, deleted_ids(uow) | {w.id})
+    uow.commit()
+    return len(active)

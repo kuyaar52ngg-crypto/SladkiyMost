@@ -17,6 +17,7 @@ from app.domain.entities import (
     WAVE_STATUS_TITLES,
     Address,
     Category,
+    Direction,
     Notification,
     Order,
     OrderStatus,
@@ -88,6 +89,15 @@ class OrderStatusIn(BaseModel):
 class WaveStatusIn(BaseModel):
     status: WaveStatus
     note: str = Field("", max_length=300)
+
+
+class WaveIn(BaseModel):
+    direction: Direction | None = None   # только при создании
+    departure: date
+    cutoff: date
+    arrival_from: date | None = None
+    arrival_to: date | None = None
+    base_load_kg: float = Field(0, ge=0)
 
 
 class ProductIn(BaseModel):
@@ -343,6 +353,7 @@ class WaveOut(BaseModel):
     orders_count: int
     final_rate: float | None
     final_load_kg: float | None
+    base_load_kg: float
 
     @classmethod
     def of(cls, v: WaveView) -> "WaveOut":
@@ -351,7 +362,7 @@ class WaveOut(BaseModel):
                    arrival_from=w.arrival_from, arrival_to=w.arrival_to, off_season=w.off_season, status=w.status,
                    status_title=WAVE_STATUS_TITLES[w.status], load_kg=v.load_kg, fill=v.fill, rate=v.rate,
                    discount_percent=v.discount_percent, open=v.open, days_left=v.days_left, orders_count=v.orders_count,
-                   final_rate=w.final_rate, final_load_kg=w.final_load_kg)
+                   final_rate=w.final_rate, final_load_kg=w.final_load_kg, base_load_kg=w.base_load_kg)
 
 
 class ThermoOut(BaseModel):
@@ -714,3 +725,4 @@ class SettingsIn(BaseModel):
     orders_closed_message: str = Field("", max_length=600)
     min_order_rub: int = Field(0, ge=0, le=1_000_000)
     reviews_premoderation: bool = True
+    waves_auto_schedule: bool = True

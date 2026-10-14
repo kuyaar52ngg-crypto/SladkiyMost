@@ -1,8 +1,9 @@
 'use client';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useShop } from '@/features/shop/store';
 import { TelegramConnect } from '@/features/telegram/TelegramConnect';
+import { useLive } from '@/shared/lib/live';
 import { get, post } from '@/shared/api/client';
 import { localLink } from '@/features/account/parts';
 import { AdminHead, Bars, Kpi, orderUrl, Panel, WAVE_PILL, waveName, waveUrl } from '@/features/admin/ui';
@@ -43,14 +44,16 @@ export default function Dashboard() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [feed, setFeed] = useState<Notice[]>([]);
-  useEffect(() => {
-    get<Stats>('/api/admin/stats').then(setS);
+  const load = useCallback(() => {
+    get<Stats>('/api/admin/stats').then(setS).catch(() => null);
     get<Order[]>('/api/admin/orders').then(setOrders).catch(() => null);
     get<Wave[]>('/api/admin/waves').then(setWaves).catch(() => null);
     get<Ticket[]>('/api/admin/tickets').then(setTickets).catch(() => null);
     get<Product[]>('/api/admin/products').then(setProducts).catch(() => null);
     get<Notice[]>('/api/account/notifications').then(setFeed).catch(() => null);
   }, []);
+  useEffect(load, [load]);
+  useLive(load);
   if (!s) return <p className="text-muted">Загружаем…</p>;
 
   const active = orders.filter((o) => ACTIVE.includes(o.status));

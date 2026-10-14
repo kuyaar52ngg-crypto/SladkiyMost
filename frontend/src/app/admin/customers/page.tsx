@@ -5,6 +5,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { AdminHead, paginate, Pager, Panel } from '@/features/admin/ui';
 import { useShop } from '@/features/shop/store';
 import { get, post } from '@/shared/api/client';
+import { useLive } from '@/shared/lib/live';
 import type { Customer, Ticket, TicketStatus } from '@/shared/api/types';
 import { cn, fmtDate, rub } from '@/shared/lib/format';
 
@@ -60,6 +61,7 @@ function Customers() {
     get<Customer[]>('/api/admin/customers').then(setCustomers).catch(() => setCustomers([]));
   }, []);
   useEffect(load, [load]);
+  useLive(load);
   const filtered = useMemo(() => (tickets || []).filter((t) => (!st || t.status === st)
     && (!q.trim() || `${t.code} ${t.customer_name} ${t.customer_phone} ${t.topic} ${t.order_code}`.toLowerCase().includes(q.trim().toLowerCase()))), [tickets, st, q]);
   const { rows, pages, page: cur } = paginate(filtered, page, 10);

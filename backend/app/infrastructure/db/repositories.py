@@ -161,6 +161,13 @@ class SqlWaveRepository:
         self.s.add(r)
         self.s.flush()
 
+    def delete(self, wave_id: str) -> None:
+        r = self.s.get(WaveRow, wave_id)
+        if r:
+            self.s.flush()  # перенос заказов должен попасть в базу раньше удаления (внешний ключ)
+            self.s.delete(r)
+            self.s.flush()
+
     def orders_weight(self) -> dict[str, float]:
         q = (select(OrderRow.wave_id, func.sum(OrderRow.weight_kg))
              .where(OrderRow.status != OrderStatus.CANCELLED.value).group_by(OrderRow.wave_id))

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { AdminHead, Kpi, Pager, Panel, paginate } from '@/features/admin/ui';
 import { useShop } from '@/features/shop/store';
 import { get, post } from '@/shared/api/client';
+import { useLive } from '@/shared/lib/live';
 import type { Review, ReviewStatus } from '@/shared/api/types';
 import { cn } from '@/shared/lib/format';
 import { Stars } from '@/shared/ui';
@@ -51,6 +52,7 @@ export default function AdminReviews() {
   const [page, setPage] = useState(1);
   const load = useCallback(() => { get<Review[]>('/api/admin/reviews').then(setAll).catch(() => setAll([])); }, []);
   useEffect(load, [load]);
+  useLive(load);
   const list = all || [];
   const shown = list.filter((r) => !tab || r.status === tab);
   const { rows: items, pages } = paginate(shown, page, 10);

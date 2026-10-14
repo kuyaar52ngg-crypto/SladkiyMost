@@ -1,6 +1,9 @@
 'use client';
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { WaveForm } from '@/features/admin/WaveForm';
+import { useLive } from '@/shared/lib/live';
 import { AdminHead, paginate, Pager, Panel, WAVE_PILL, waveUrl } from '@/features/admin/ui';
 import { useShop } from '@/features/shop/store';
 import { get } from '@/shared/api/client';
@@ -17,7 +20,11 @@ export default function WavesAdmin() {
   const [st, setSt] = useState<WaveStatus | ''>('');
   const [withOrders, setWithOrders] = useState(false);
   const [page, setPage] = useState(1);
-  useEffect(() => { get<Wave[]>('/api/admin/waves').then(setList).catch(() => setList([])); }, []);
+  const [adding, setAdding] = useState(false);
+  const router = useRouter();
+  const load = useCallback(() => { get<Wave[]>('/api/admin/waves').then(setList).catch(() => setList([])); }, []);
+  useEffect(load, [load]);
+  useLive(load);
   const filtered = useMemo(() => (list || []).filter((w) => (!dir || w.direction === dir) && (!st || w.status === st)
     && (!withOrders || w.orders_count > 0) && (!q.trim() || `${w.title} ${fmtDate(w.departure)} ${w.id}`.toLowerCase().includes(q.trim().toLowerCase()))), [list, dir, st, withOrders, q]);
   const { rows, pages, page: cur } = paginate(filtered, page);
@@ -27,7 +34,14 @@ export default function WavesAdmin() {
 
   return (
     <>
-      <AdminHead title="Сборные партии" text="Партии формируются по расписанию: приём заказов закрывается автоматически, статусы меняются вручную." />
+      <AdminHead title="Сборные партии" text="Партии создаются по расписанию (это можно выключить в настройках) или вручную. Приём заказов закрывается автоматически, статусы меняются вручную. Изменения сразу видны на странице «Сборная доставка».">
+        {!adding && <button type="button" className="btn btn-primary" onClick={() => setAdding(true)}>Добавить партию</button>}
+      </AdminHead>
+      {adding && (
+        <Panel className="mb-6" title="Новая партия">
+          <WaveForm onCancel={() => setAdding(false)} onSaved={(w) => { setAdding(false); load(); router.push(waveUrl(w)); }} />
+        </Panel>
+      )}
       <Panel>
         <div className="grid gap-4 sm:grid-cols-3">
           <label className="field"><span className="label">Поиск по партиям</span><input className="input" placeholder="Направление или дата" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} /></label>

@@ -1,8 +1,9 @@
 'use client';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useShop } from '@/features/shop/store';
+import { useLive } from '@/shared/lib/live';
 import { get, post } from '@/shared/api/client';
 import type { Notice } from '@/shared/api/types';
 import { cn } from '@/shared/lib/format';
@@ -27,9 +28,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => {
     if (!isLogin && user !== undefined && !allowed) router.replace(`/admin/login?next=${encodeURIComponent(path)}`);
   }, [isLogin, user, allowed, path, router]);
-  useEffect(() => {
+  const loadUnread = useCallback(() => {
     if (allowed && !isLogin) get<Notice[]>('/api/account/notifications').then((l) => setUnread(l.filter((n) => !n.read).length)).catch(() => null);
-  }, [allowed, isLogin, path]);
+  }, [allowed, isLogin]);
+  useEffect(loadUnread, [loadUnread, path]);
+  useLive(loadUnread);
 
   if (isLogin) return <>{children}</>;
   if (!allowed) return <div className="py-24 text-center text-muted">Загружаем…</div>;

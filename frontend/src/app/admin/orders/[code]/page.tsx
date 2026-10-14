@@ -6,6 +6,7 @@ import { Info, Items, OrderPath, Row, units } from '@/features/account/parts';
 import { AdminHead, ORDER_ADMIN, Panel, WAVE_PILL, waveName, waveUrl } from '@/features/admin/ui';
 import { useShop } from '@/features/shop/store';
 import { get, post } from '@/shared/api/client';
+import { useLive } from '@/shared/lib/live';
 import type { Order, OrderStatus, ShopOrder } from '@/shared/api/types';
 import { cn, fmtDate, kg, rub } from '@/shared/lib/format';
 
@@ -24,6 +25,7 @@ export default function AdminOrder() {
   const [shops, setShops] = useState<ShopOrder[]>([]);
   const load = useCallback(() => { get<Order>(`/api/admin/orders/${encodeURIComponent(code)}`).then((x) => { setO(x); setStatus(x.status); }).catch(() => setO(false)); }, [code]);
   useEffect(load, [load]);
+  useLive(load);
   useEffect(() => { get<ShopOrder[]>(`/api/admin/orders/${encodeURIComponent(code)}/shops`).then(setShops).catch(() => setShops([])); }, [code]);
   if (o === null) return <p className="text-muted">Загружаем…</p>;
   if (!o) return <><AdminHead title="Заказ не найден" crumb={[['Заказы', '/admin/orders'], [code]]} /><Link className="btn" href="/admin/orders">К заказам</Link></>;
