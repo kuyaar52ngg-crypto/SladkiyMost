@@ -2,10 +2,11 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Gallery } from '@/features/product/Gallery';
 import { ProductActions } from '@/features/product/ProductActions';
+import { Reviews, reviewsLabel } from '@/features/product/Reviews';
 import { ApiError, get } from '@/shared/api/client';
-import type { Meta, Product, Wave } from '@/shared/api/types';
+import type { Meta, Product, ProductReviews, Wave } from '@/shared/api/types';
 import { fmtDate, fmtRange, rub } from '@/shared/lib/format';
-import { Crumbs, Icon, Kv, Note } from '@/shared/ui';
+import { Crumbs, Icon, Kv, Note, Stars } from '@/shared/ui';
 import { ProductCard } from '@/widgets/ProductCard';
 
 type Props = { params: Promise<{ id: string }> };
@@ -26,8 +27,9 @@ export default async function ProductPage({ params }: Props) {
   const p = await load((await params).id);
   if (!p.active) notFound();
   const dir = p.region === 'YKT' ? 'YKT-DNR' : 'DNR-YKT';
-  const [meta, waves, related] = await Promise.all([
+  const [meta, waves, related, reviews] = await Promise.all([
     get<Meta>('/api/meta'), get<Wave[]>(`/api/waves?direction=${dir}&only_open=true`), get<Product[]>(`/api/products?region=${p.region}`),
+    get<ProductReviews>(`/api/products/${encodeURIComponent(p.id)}/reviews`).catch((): ProductReviews => ({ rating: 0, count: 0, items: [] })),
   ]);
   const w = waves[0];
   const more = related.filter((x) => x.id !== p.id).slice(0, 4);
@@ -41,6 +43,7 @@ export default async function ProductPage({ params }: Props) {
         <div>
           <div className="flex flex-wrap gap-2"><span className="chip chip-on">{region.showcase}</span>{p.tag && <span className="chip">{p.tag}</span>}<span className="chip">{p.category}</span></div>
           <h1 className="h1 my-4">{p.name}</h1>
+          {reviews.count > 0 && <a href="#reviews" className="-mt-2 mb-3 flex items-center gap-2 text-[13px]"><Stars value={reviews.rating} size="text-sm" /><span className="text-muted">{reviews.rating.toFixed(1)} · {reviewsLabel(reviews.count)}</span></a>}
           <p className="text-base whitespace-pre-line text-muted">{p.description}</p>
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <span className="text-[13px] text-muted">Масса нетто</span><span className="tag">{p.weight_g} г</span>
@@ -59,6 +62,8 @@ export default async function ProductPage({ params }: Props) {
           <Kv k="Регион" v={region.name} />{p.manufacturer && <Kv k="Производитель" v={p.manufacturer} />}<Kv k="Масса нетто" v={`${p.weight_g} г`} /><Kv k="Срок годности" v={`${p.shelf_life_days} сут`} /><Kv k="Артикул" v={p.id} />
         </div>
       </div>
+      <hr className="my-10 border-line" />
+      <Reviews data={reviews} />
       {more.length > 0 && <>
         <hr className="my-10 border-line" />
         <h2 className="h2 mb-6">Добавьте к чаепитию</h2>

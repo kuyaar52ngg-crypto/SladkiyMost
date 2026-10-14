@@ -8,7 +8,8 @@ import hmac
 from app.infrastructure.clock import SystemClock
 from app.infrastructure.config import Settings, settings
 from app.infrastructure.db.uow import SqlUnitOfWork, make_session_factory
-from app.infrastructure.security import Argon2Hasher, SessionTokens
+from app.infrastructure.email import NullEmailLinks, SupabaseEmailLinks
+from app.infrastructure.security import Argon2Hasher, ResetLinkTokens, SessionTokens
 from app.infrastructure.storage import LocalStorage, SupabaseStorage
 from app.infrastructure.telegram import TelegramBot
 from app.presentation.api.app import create_app
@@ -37,6 +38,9 @@ app = create_app(
         webhook_secret=settings.telegram_webhook_secret
         or hmac.new(settings.jwt_secret.encode(), b"telegram-webhook", hashlib.sha256).hexdigest(),
         cookie_secure=settings.cookie_secure,
+        mail=SupabaseEmailLinks(settings.supabase_url, settings.supabase_service_key)
+        if settings.supabase_url and settings.supabase_service_key else NullEmailLinks(),
+        reset_tokens=ResetLinkTokens(settings.jwt_secret),
     ),
     cors_origins=settings.cors_origins,
 )

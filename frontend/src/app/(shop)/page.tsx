@@ -12,6 +12,7 @@ export default async function Home() {
     get<Meta>('/api/meta'), get<Product[]>('/api/products?sort=new&limit=8'), get<Wave[]>('/api/waves?only_open=true'),
   ]);
   const p = meta.policy;
+  const hero = meta.content.hero;
   const next = (['YKT-DNR', 'DNR-YKT'] as const).map((d) => waves.find((w) => w.direction === d)).filter((w): w is Wave => !!w);
   const sample = [...next].sort((a, b) => a.rate - b.rate)[0];
   const est = sample ? await calc<QuoteResponse>('/api/quote/estimate', { wave_id: sample.id, weight_kg: 1 }) : null;
@@ -20,14 +21,14 @@ export default async function Home() {
     <>
       <section className="container-x grid items-center gap-7 py-7 md:grid-cols-[1fr_1.05fr] md:gap-12 md:py-12">
         <div>
-          <p className="overline">Якутия и Донбасс · с любовью к родному</p>
-          <h1 className="mt-3.5 mb-5 font-head text-[34px] leading-[1.1] font-bold tracking-tight lg:text-[52px]">Вкус родного края — ближе, чем кажется</h1>
-          <p className="max-w-[470px] text-base text-muted">Любимые сладости из Якутии и Донбасса. Объединяем заказы в сборные отправки, чтобы доставка была выгоднее.</p>
+          {hero.overline && <p className="overline">{hero.overline}</p>}
+          <h1 className="mt-3.5 mb-5 font-head text-[34px] leading-[1.1] font-bold tracking-tight lg:text-[52px]">{hero.title}</h1>
+          {hero.subtitle && <p className="max-w-[470px] text-base text-muted">{hero.subtitle}</p>}
           <div className="mt-6 flex flex-wrap gap-3">
             <Link className="btn btn-primary" href="/catalog">Выбрать сладости <Icon name="bag" className="size-[18px]" /></Link>
             <Link className="btn" href="/delivery">Как работает доставка</Link>
           </div>
-          <p className="mt-4 text-[13px] text-muted">Для себя, к семейному чаепитию и в подарок близким.</p>
+          {hero.note && <p className="mt-4 text-[13px] text-muted">{hero.note}</p>}
         </div>
         <div className="relative aspect-[596/520] overflow-hidden rounded-card">
           <Image src="/img/hero.jpg" alt="Зефир, трюфели и печенье к чаю" fill priority sizes="(max-width: 768px) 100vw, 50vw" className="object-cover" />

@@ -388,3 +388,40 @@ class Ticket:
     @property
     def code(self) -> str:
         return f"ОБ-{self.number:03d}" if self.number else "ОБ-…"
+
+
+@dataclass
+class Category:
+    """Категория каталога; товары ссылаются на неё по названию."""
+    id: int | None
+    name: str
+    position: int = 0
+    active: bool = True
+
+
+class ReviewStatus(StrEnum):
+    PENDING = "pending"
+    PUBLISHED = "published"
+    REJECTED = "rejected"
+
+
+REVIEW_STATUS_TITLES = {
+    ReviewStatus.PENDING: "На модерации",
+    ReviewStatus.PUBLISHED: "Опубликован",
+    ReviewStatus.REJECTED: "Отклонён",
+}
+
+
+@dataclass
+class Review:
+    """Отзыв покупателя о товаре из полученного заказа."""
+    id: int | None
+    product_id: str
+    user_id: int
+    order_number: int
+    author: str
+    rating: int
+    text: str
+    status: ReviewStatus = ReviewStatus.PENDING
+    reply: str = ""
+    created_at: datetime | None = None

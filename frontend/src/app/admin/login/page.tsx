@@ -46,7 +46,7 @@ function AdminLogin() {
           <label className="mt-2 flex cursor-pointer items-center gap-2 text-xs text-muted"><input type="checkbox" className="accent-accent" checked={show} onChange={(e) => setShow(e.target.checked)} />Показать пароль</label>
           {err && <p role="alert" className="mt-4 text-[13px] text-accent">{err}</p>}
           <button className="btn btn-primary mt-6 w-full" disabled={busy}>{busy ? 'Входим…' : 'Войти в панель'}</button>
-          <p className="mt-5 border-t border-line pt-4 text-xs text-muted">Нет доступа? Обратитесь к ответственному за платформу.</p>
+          <p className="mt-5 border-t border-line pt-4 text-xs text-muted"><Link className="text-accent underline underline-offset-2" href="/reset">Забыли пароль?</Link> Нет доступа? Обратитесь к ответственному за платформу.</p>
         </form>
         <p className="mt-5 text-center"><Link className="inline-flex items-center gap-1.5 text-[13px] text-accent" href="/"><Icon name="back" className="size-4" />Вернуться в магазин</Link></p>
       </main>

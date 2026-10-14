@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends
 
 from app.application import account as A
 from app.application import notifications as notify
+from app.application import reviews as R
 from app.application.ports import UnitOfWork
 from app.domain.entities import TICKET_TOPICS, User
 
@@ -97,3 +98,24 @@ def ticket_message(number: int, body: S.MessageIn, user: User = Depends(require_
     t = A.add_message(u, user, number, body.text)
     notify.ticket_updated(u, c.notifier, t, c.site_url, by_support=False)
     return S.TicketOut.of(t)
+
+
+# ---------------- отзывы ----------------
+@router.get("/reviews")
+def my_reviews(user: User = Depends(require_user), u: UnitOfWork = Depends(uow)):
+    """Мои отзывы и товары из полученных заказов, о которых можно написать."""
+    names = {i.product_id: i.name for o in u.orders.by_user(user.id) for i in o.items}
+    return {
+        "mine": [S.ReviewOut.of(r, names.get(r.product_id, "")) for r in R.my_reviews(u, user)],
+        "pending": [S.ReviewableOut(product_id=x.product_id, name=x.name, photo=x.photo, order_code=f"СМ-{x.order_number}")
+                    for x in R.to_review(u, user)],
+    }
+
+
+@router.post("/reviews", response_model=S.ReviewOut, status_code=201)
+def leave_review(body: S.RatingIn, user: User = Depends(require_user), u: UnitOfWork = Depends(uow),
+                 c: Container = Depends(container)):
+    r = R.leave_review(u, user, body.product_id, body.rating, body.text)
+    p = u.products.get(r.product_id)
+    notify.review_left(u, c.notifier, r, p.name if p else r.product_id, c.site_url)
+    return S.ReviewOut.of(r, p.name if p else "")

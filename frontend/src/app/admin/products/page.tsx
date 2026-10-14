@@ -18,7 +18,7 @@ export default function ProductsAdmin() {
   const [q, setQ] = useState('');
   const [pub, setPub] = useState('');
   const [region, setRegion] = useState('');
-  const [category, setCategory] = useState('');
+  const [category, setCategory] = useState(() => (typeof window === 'undefined' ? '' : new URLSearchParams(window.location.search).get('category') ?? ''));
   const [page, setPage] = useState(1);
   const load = useCallback(() => get<Product[]>('/api/admin/products').then(setList), []);
   useEffect(() => { load(); }, [load]);
@@ -105,7 +105,7 @@ export default function ProductsAdmin() {
             <label className="field"><span className="label">Название *</span><input className="input" required value={edit.name} onChange={(e) => f('name', e.target.value)} /></label>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="field"><span className="label">Регион</span><select className="select" value={edit.region} onChange={(e) => f('region', e.target.value as RegionId)}>{Object.entries(meta.regions).map(([k, r]) => <option key={k} value={k}>{r.name}</option>)}</select></label>
-              <label className="field"><span className="label">Категория</span><select className="select" value={edit.category} onChange={(e) => f('category', e.target.value)}>{meta.categories.map((c) => <option key={c}>{c}</option>)}</select></label>
+              <label className="field"><span className="label">Категория</span><select className="select" value={edit.category} onChange={(e) => f('category', e.target.value)}>{[...meta.categories, ...(meta.categories.includes(edit.category) ? [] : [edit.category])].map((c) => <option key={c}>{c}</option>)}</select></label>
             </div>
             <label className="field"><span className="label">Производитель</span><input className="input" value={edit.manufacturer} onChange={(e) => f('manufacturer', e.target.value)} /></label>
             <div className="grid gap-3 sm:grid-cols-2">

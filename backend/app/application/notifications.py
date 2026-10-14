@@ -17,6 +17,8 @@ from app.domain.entities import (
     Order,
     OrderStatus,
     PrepStatus,
+    Review,
+    ReviewStatus,
     Shop,
     Ticket,
     User,
@@ -173,4 +175,25 @@ def prep_changed(uow: UnitOfWork, notifier: Notifier, shop: Shop, o: Order, stat
     for admin in _admins(uow):
         _deliver(uow, notifier, admin, NotificationKind.ORDER, f"{o.code}: {shop.name} — {PREP_TITLES[status].lower()}",
                  f"Подготовка позиций магазина «{shop.name}» в заказе {o.code}.", f"{site_url}/admin/orders/{o.code}")
+    uow.commit()
+
+
+def review_left(uow: UnitOfWork, notifier: Notifier, r: Review, product: str, site_url: str) -> None:
+    stars = "★" * r.rating + "☆" * (5 - r.rating)
+    title = "Новый отзыв ждёт модерации" if r.status == ReviewStatus.PENDING else "Новый отзыв опубликован"
+    for a in _admins(uow):
+        _deliver(uow, notifier, a, NotificationKind.SUPPORT, title, f"{product} · {stars} · {r.author}",
+                 f"{site_url}/admin/reviews")
+    uow.commit()
+
+
+def review_moderated(uow: UnitOfWork, notifier: Notifier, r: Review, product: str, site_url: str) -> None:
+    if r.status == ReviewStatus.PUBLISHED:
+        body = f"Ваш отзыв о «{product}» опубликован." + (" Магазин ответил на него." if r.reply else "")
+    elif r.status == ReviewStatus.REJECTED:
+        body = f"Отзыв о «{product}» не прошёл модерацию." + (f" Комментарий: {r.reply}" if r.reply else "")
+    else:
+        return
+    _deliver(uow, notifier, uow.users.get(r.user_id), NotificationKind.SUPPORT, "Отзыв", body,
+             f"{site_url}/product/{r.product_id}#reviews")
     uow.commit()

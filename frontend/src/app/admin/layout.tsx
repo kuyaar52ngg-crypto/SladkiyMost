@@ -10,8 +10,9 @@ import { Icon } from '@/shared/ui';
 import { Logo } from '@/widgets/Logo';
 
 const NAV = [
-  ['/admin', 'Дашборд'], ['/admin/orders', 'Заказы'], ['/admin/waves', 'Сборные партии'], ['/admin/products', 'Товары'], ['/admin/sellers', 'Продавцы'],
-  ['/admin/customers', 'Покупатели'], ['/admin/analytics', 'Аналитика'],
+  ['/admin', 'Дашборд'], ['/admin/orders', 'Заказы'], ['/admin/waves', 'Сборные партии'], ['/admin/products', 'Товары'], ['/admin/categories', 'Категории'],
+  ['/admin/sellers', 'Продавцы'], ['/admin/customers', 'Покупатели'], ['/admin/reviews', 'Отзывы'], ['/admin/analytics', 'Аналитика'],
+  ['/admin/content', 'Контент сайта'], ['/admin/settings', 'Настройки'],
 ] as const;
 const active = (path: string, href: string) => (href === '/admin' ? path === href : path.startsWith(href));
 
@@ -40,7 +41,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   };
 
   return (
-    <div className="mx-auto grid min-h-screen max-w-[1440px] md:grid-cols-[232px_1fr]">
+    <div className="mx-auto grid min-h-screen max-w-[1440px] grid-cols-[minmax(0,1fr)] md:grid-cols-[232px_minmax(0,1fr)]">
       <aside className="border-line md:sticky md:top-0 md:flex md:h-screen md:flex-col md:border-r md:px-6 md:py-8">
         <div className="hidden md:block"><Logo href="/admin" align="start" /></div>
         <nav aria-label="Разделы администратора" className="flex gap-1.5 overflow-x-auto border-b border-line px-4 py-3 text-sm md:mt-8 md:block md:space-y-1 md:border-0 md:p-0">

@@ -6,9 +6,8 @@ from dataclasses import dataclass, field, replace
 from app.domain.entities import OrderStatus, Product, Region
 from app.domain.errors import Conflict, DomainError, NotFound
 
+from . import content
 from .ports import ProductFilter, UnitOfWork
-
-CATEGORIES = ["Зефир и пастила", "Шоколад и конфеты", "Печенье и вафли", "Мармелад", "Подарочные наборы"]
 
 
 def popularity(uow: UnitOfWork) -> dict[str, int]:
@@ -82,7 +81,7 @@ def save_product(uow: UnitOfWork, data: ProductData, product_id: str | None = No
         raise DomainError("Укажите название")
     if data.weight_g <= 0 or data.price_rub <= 0:
         raise DomainError("Масса и цена должны быть больше нуля")
-    if data.category not in CATEGORIES:
+    if data.category not in content.category_names(uow, with_hidden=True):
         raise DomainError("Неизвестная категория")
     photos = _clean_photos(data.photos)
     fields = {**data.__dict__, "name": data.name.strip(), "photos": photos, "photo": photos[0]}

@@ -34,3 +34,16 @@ export const Layout = ({ main, aside }: { main: ReactNode; aside: ReactNode }) =
     <aside className="flex flex-col gap-4 lg:sticky lg:top-32">{aside}</aside>
   </div>
 );
+
+/** Приём заказов приостановлен или сумма меньше минимальной (настройки площадки). null — можно оформлять. */
+export function useOrderBlock(items: CartItem[]): string | null {
+  const { meta } = useShop();
+  const r = meta.rules;
+  if (!r.orders_open) return r.orders_closed_message;
+  if (r.min_order_rub > 0 && goods(items) < r.min_order_rub) return `Минимальная сумма заказа — ${rub(r.min_order_rub)}. Добавьте ещё сладостей на ${rub(r.min_order_rub - goods(items))}.`;
+  return null;
+}
+
+export const OrderBlock = ({ text }: { text: string | null }) => text
+  ? <div role="alert" className="mb-5 rounded-card border-l-4 border-accent bg-pink px-4 py-3 text-[13px]"><b className="block text-accent">Оформление недоступно</b>{text}</div>
+  : null;

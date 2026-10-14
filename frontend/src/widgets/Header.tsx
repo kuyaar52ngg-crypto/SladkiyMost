@@ -10,10 +10,13 @@ const NAV = [['/catalog', 'Каталог'], ['/delivery', 'Сборная до�
 
 export function Header() {
   const path = usePathname();
-  const { count, ready, user } = useShop();
+  const { count, ready, user, meta } = useShop();
+  const banner = meta.content.banner;
   return (
     <>
-      <div className="bg-ink px-3 py-2 text-center text-xs text-white">Соединяем регионы через вкус и эмоции</div>
+      {banner.enabled && banner.text
+        ? <div className="bg-accent px-3 py-2 text-center text-xs font-semibold text-white">{banner.link ? <Link href={banner.link} className="underline-offset-2 hover:underline">{banner.text}</Link> : banner.text}</div>
+        : <div className="bg-ink px-3 py-2 text-center text-xs text-white">Соединяем регионы через вкус и эмоции</div>}
       <header className="sticky top-0 z-30 border-b border-line bg-white">
         <div className="container-x flex min-h-[72px] items-center justify-between gap-6 md:min-h-[111px]">
           <Logo />

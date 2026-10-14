@@ -19,10 +19,10 @@ function authHeader(): Record<string, string> {
   try { const t = sessionStorage.getItem(TOKEN_KEY); return t ? { Authorization: `Bearer ${t}` } : {}; } catch { return {}; }
 }
 
-// Изменения, после которых витрина должна показать свежие данные (товары, загрузка партий).
-const CHANGES_STOREFRONT = /^\/api\/(admin\/(products|orders|waves)|orders)/;
+// Изменения, после которых витрина должна показать свежие данные (товары, партии, категории, тексты, отзывы).
+const CHANGES_STOREFRONT = /^\/api\/(admin\/(products|orders|waves|categories|content|settings|reviews|shops)|seller\/products|orders|account\/reviews)/;
 
-/** Сбросить кэш витрины на сервере Next после изменений (товары, заказы, партии). */
+/** Сбросить кэш витрины на сервере Next после изменений. */
 export function refreshStorefront() {
   if (typeof window !== 'undefined') fetch('/api/revalidate', { method: 'POST' }).catch(() => {});
 }

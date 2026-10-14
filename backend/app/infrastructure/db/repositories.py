@@ -10,6 +10,7 @@ from app.application.orders import phone_digits
 from app.application.ports import ProductFilter
 from app.domain.entities import (
     Address,
+    Category,
     Direction,
     GiftCard,
     LineItem,
@@ -24,6 +25,8 @@ from app.domain.entities import (
     Recipient,
     Region,
     PrepEvent,
+    Review,
+    ReviewStatus,
     PrepStatus,
     Role,
     Shop,
@@ -39,12 +42,15 @@ from app.domain.entities import (
 
 from .models import (
     AddressRow,
+    CategoryRow,
     NotificationRow,
     OrderEventRow,
     OrderItemRow,
     OrderRow,
     ProductPhotoRow,
     ProductRow,
+    ReviewRow,
+    SettingRow,
     ShopOrderRow,
     ShopRow,
     TicketMessageRow,
@@ -288,6 +294,10 @@ class SqlUserRepository:
         q = select(UserRow).where(UserRow.role == Role.CUSTOMER.value).order_by(UserRow.id.desc())
         return [_user(r) for r in self.s.scalars(q)]
 
+    def by_email(self, email: str) -> list[User]:
+        q = select(UserRow).where(func.lower(UserRow.email) == email.strip().lower()).order_by(UserRow.id)
+        return [_user(r) for r in self.s.scalars(q)]
+
     def add(self, u: User) -> None:
         r = UserRow()
         self._fill(r, u)
@@ -497,4 +507,102 @@ class SqlShopOrderRepository:
             self.s.add(r)
         r.status = so.status.value
         r.history = [{"status": h.status.value, "at": h.at.isoformat(), "note": h.note} for h in so.history]
+        self.s.flush()
+
+
+# ---------------- категории, отзывы, настройки ----------------
+class SqlCategoryRepository:
+    def __init__(self, s: Session):
+        self.s = s
+
+    def list(self) -> list[Category]:
+        q = select(CategoryRow).order_by(CategoryRow.position, CategoryRow.id)
+        return [Category(r.id, r.name, r.position, r.active) for r in self.s.scalars(q)]
+
+    def get(self, category_id: int) -> Category | None:
+        r = self.s.get(CategoryRow, category_id)
+        return Category(r.id, r.name, r.position, r.active) if r else None
+
+    def add(self, c: Category) -> None:
+        r = CategoryRow(name=c.name, position=c.position, active=c.active)
+        self.s.add(r)
+        self.s.flush()
+        c.id = r.id
+
+    def save(self, c: Category) -> None:
+        r = self.s.get(CategoryRow, c.id) if c.id is not None else None
+        if r is None:
+            return self.add(c)
+        r.name, r.position, r.active = c.name, c.position, c.active
+        self.s.flush()
+
+    def delete(self, category_id: int) -> None:
+        r = self.s.get(CategoryRow, category_id)
+        if r:
+            self.s.delete(r)
+            self.s.flush()
+
+
+REVIEW_FIELDS = ("product_id", "user_id", "order_number", "author", "rating", "text", "reply")
+
+
+def _review(r: ReviewRow) -> Review:
+    return Review(id=r.id, status=ReviewStatus(r.status), created_at=r.created_at,
+                  **{f: getattr(r, f) for f in REVIEW_FIELDS})
+
+
+class SqlReviewRepository:
+    def __init__(self, s: Session):
+        self.s = s
+
+    def add(self, rv: Review) -> None:
+        r = ReviewRow()
+        self._fill(r, rv)
+        self.s.add(r)
+        self.s.flush()
+        rv.id, rv.created_at = r.id, r.created_at
+
+    def get(self, review_id: int) -> Review | None:
+        r = self.s.get(ReviewRow, review_id)
+        return _review(r) if r else None
+
+    def save(self, rv: Review) -> None:
+        r = self.s.get(ReviewRow, rv.id) if rv.id is not None else None
+        if r is None:
+            return self.add(rv)
+        self._fill(r, rv)
+        self.s.flush()
+
+    def list(self, *, status: ReviewStatus | None = None, product_id: str | None = None,
+             user_id: int | None = None) -> list[Review]:
+        q = select(ReviewRow).order_by(ReviewRow.id.desc())
+        if status is not None:
+            q = q.where(ReviewRow.status == status.value)
+        if product_id is not None:
+            q = q.where(ReviewRow.product_id == product_id)
+        if user_id is not None:
+            q = q.where(ReviewRow.user_id == user_id)
+        return [_review(r) for r in self.s.scalars(q)]
+
+    @staticmethod
+    def _fill(r: ReviewRow, rv: Review) -> None:
+        r.status = rv.status.value
+        for f in REVIEW_FIELDS:
+            setattr(r, f, getattr(rv, f))
+
+
+class SqlSettingsRepository:
+    def __init__(self, s: Session):
+        self.s = s
+
+    def get(self, key: str) -> dict | None:
+        r = self.s.get(SettingRow, key)
+        return dict(r.value) if r and isinstance(r.value, dict) else None
+
+    def put(self, key: str, value: dict) -> None:
+        r = self.s.get(SettingRow, key)
+        if r is None:
+            self.s.add(SettingRow(key=key, value=value))
+        else:
+            r.value = value
         self.s.flush()

@@ -22,6 +22,7 @@ from app.domain.entities import (
 )
 from app.domain.errors import Conflict, DomainError, Forbidden, NotFound
 
+from . import content
 from .ports import UnitOfWork
 from .waves import WaveView, get_wave_view
 
@@ -111,7 +112,13 @@ def _required(value: str, message: str) -> str:
 
 def place_order(uow: UnitOfWork, today: date, cmd: PlaceOrderCommand,
                 p: L.LogisticsPolicy = L.DEFAULT_POLICY) -> Order:
+    rules = content.platform_settings(uow)
+    if not rules["orders_open"]:
+        raise Conflict(rules["orders_closed_message"])
     items, view, q = quote_order(uow, today, cmd.quote, p)
+    goods = sum(i.price_rub * i.qty for i in items)
+    if goods < rules["min_order_rub"]:
+        raise DomainError(f"Минимальная сумма заказа — {rules['min_order_rub']} ₽ (сейчас товаров на {goods} ₽)")
     if not view.open:
         raise Conflict("Приём заказов в эту волну закрыт — выберите следующую")
     if not q.fits:

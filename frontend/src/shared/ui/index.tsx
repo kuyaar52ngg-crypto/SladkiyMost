@@ -89,3 +89,17 @@ export function Total({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
+/** Оценка звёздами; с onChange — выбор оценки. */
+export function Stars({ value, onChange, size = 'text-base' }: { value: number; onChange?: (v: number) => void; size?: string }) {
+  const label = `Оценка ${value} из 5`;
+  if (!onChange) return <span role="img" aria-label={label} className={`${size} tracking-[2px] text-accent`}>{'★'.repeat(Math.round(value))}<span className="text-line-strong">{'★'.repeat(5 - Math.round(value))}</span></span>;
+  return (
+    <span role="radiogroup" aria-label="Оценка" className={`${size} inline-flex gap-1`}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button key={n} type="button" role="radio" aria-checked={value === n} aria-label={`${n} из 5`} onClick={() => onChange(n)}
+          className={n <= value ? 'text-accent' : 'text-line-strong hover:text-accent/60'}>★</button>
+      ))}
+    </span>
+  );
+}

@@ -7,7 +7,7 @@ import { post } from '@/shared/api/client';
 import type { User } from '@/shared/api/types';
 import { cn } from '@/shared/lib/format';
 
-type Field = 'name' | 'phone' | 'password' | 'repeat' | 'consent';
+type Field = 'name' | 'phone' | 'email' | 'password' | 'repeat' | 'consent';
 const digits = (s: string) => s.replace(/\D/g, '');
 
 /** Поле формы с ошибкой рядом (правила валидации из макета). */
@@ -35,7 +35,7 @@ function Secret({ label, value, onChange, placeholder, auto, bad }: { label: str
 /** Вход и регистрация по телефону и паролю. Cookie сессии ставит бэкенд. */
 export function AuthForm({ mode, onDone, next }: { mode: 'login' | 'register'; onDone: (u: User) => void; next: string }) {
   const { setUser } = useShop();
-  const [v, setV] = useState({ name: '', phone: '', password: '', repeat: '', consent: false });
+  const [v, setV] = useState({ name: '', phone: '', email: '', password: '', repeat: '', consent: false });
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
   const [common, setCommon] = useState('');
   const [busy, setBusy] = useState(false);
@@ -46,6 +46,7 @@ export function AuthForm({ mode, onDone, next }: { mode: 'login' | 'register'; o
     const e: Partial<Record<Field, string>> = {};
     if (reg && v.name.trim().length < 2) e.name = 'Укажите имя и фамилию';
     if (digits(v.phone).length < 10 || digits(v.phone).length > 11) e.phone = 'Введите номер телефона полностью';
+    if (reg && v.email.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v.email.trim())) e.email = 'Проверьте адрес почты';
     if (!v.password) e.password = 'Введите пароль';
     else if (reg && v.password.length < 8) e.password = 'Не менее 8 символов';
     if (reg && v.repeat !== v.password) e.repeat = 'Пароли не совпадают';
@@ -59,7 +60,7 @@ export function AuthForm({ mode, onDone, next }: { mode: 'login' | 'register'; o
     if (Object.keys(e).length) { setCommon(reg ? 'Проверьте данные регистрации' : 'Проверьте телефон и пароль'); return; }
     setBusy(true); setCommon('');
     try {
-      const body = reg ? { name: v.name, phone: v.phone, password: v.password } : { phone: v.phone, password: v.password };
+      const body = reg ? { name: v.name, phone: v.phone, email: v.email.trim() || null, password: v.password } : { phone: v.phone, password: v.password };
       const u = await post<User>(reg ? '/api/auth/register' : '/api/auth/login', { ...body, tg_init_data: tgInitData() });
       setUser(u);
       if (u.telegram) askWriteAccess();
@@ -76,6 +77,11 @@ export function AuthForm({ mode, onDone, next }: { mode: 'login' | 'register'; o
       <Row label="Телефон" error={errors.phone} hint={reg ? 'Этот номер будет логином для входа' : 'Номер, указанный при регистрации'}>
         <input aria-label="Телефон" className={cn('input', errors.phone && 'input-invalid')} type="tel" autoComplete="tel" placeholder="+7 (___) ___-__-__" value={v.phone} onChange={(e) => set('phone', e.target.value)} />
       </Row>
+      {reg && (
+        <Row label="Электронная почта (необязательно)" error={errors.email} hint="Пригодится, чтобы восстановить пароль">
+          <input aria-label="Почта" className={cn('input', errors.email && 'input-invalid')} type="email" autoComplete="email" placeholder="name@mail.ru" value={v.email} onChange={(e) => set('email', e.target.value)} />
+        </Row>
+      )}
       <Row label="Пароль" error={errors.password} hint={reg ? 'Не менее 8 символов' : undefined}>
         <Secret label="Пароль" value={v.password} onChange={(x) => set('password', x)} placeholder={reg ? 'Придумайте пароль' : 'Введите пароль'} auto={reg ? 'new-password' : 'current-password'} bad={!!errors.password} />
       </Row>
@@ -92,7 +98,7 @@ export function AuthForm({ mode, onDone, next }: { mode: 'login' | 'register'; o
         </div>
       )}
       <button className="btn btn-primary w-full" disabled={busy}>{busy ? 'Подождите…' : reg ? 'Зарегистрироваться' : 'Войти'}</button>
-      {!reg && <p className="text-center text-xs text-muted">Забыли пароль? Напишите нам через «Задать вопрос» — восстановим доступ по номеру телефона.</p>}
+      {!reg && <p className="text-center text-[13px]"><Link className="text-accent underline underline-offset-2" href="/reset">Забыли пароль?</Link></p>}
       <div className="border-t border-line pt-5 text-center text-[13px] text-muted">
         {reg ? <>Уже есть аккаунт? <Link className="font-semibold text-accent" href={`/login${q}`}>Войти</Link></>
           : <>Впервые в «Сладком мосте»?<Link className="btn mt-3 w-full" href={`/login${q}&mode=register`}>Зарегистрироваться</Link></>}

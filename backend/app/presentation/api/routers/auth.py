@@ -89,3 +89,35 @@ def telegram_link(user: User = Depends(require_user), c: Container = Depends(con
     if not name:
         raise DomainError("Telegram-бот не настроен: проверьте TELEGRAM_BOT_TOKEN")
     return S.LinkOut(url=f"https://t.me/{name}?start={auth.telegram_link_token(u, user.id)}")
+
+
+class _NoMail:
+    enabled = False
+
+    def send_link(self, email: str, redirect_to: str) -> None:
+        pass
+
+    def email_of(self, access_token: str) -> str | None:
+        return None
+
+
+def _mail(c: Container):
+    return c.mail or _NoMail()
+
+
+@router.post("/reset/request")
+def reset_request(body: S.ResetRequestIn, c: Container = Depends(container), u: UnitOfWork = Depends(uow)):
+    """Ссылка для смены пароля: на почту из профиля и в Telegram, если он привязан."""
+    if c.reset_tokens is None:
+        raise DomainError("Восстановление пароля не настроено")
+    auth.request_password_reset(u, _mail(c), c.reset_tokens, c.notifier, body.login, c.site_url)
+    return {"ok": True, "email": _mail(c).enabled}
+
+
+@router.post("/reset/confirm", response_model=S.UserOut)
+def reset_confirm(body: S.ResetConfirmIn, response: Response, c: Container = Depends(container),
+                  u: UnitOfWork = Depends(uow)):
+    if c.reset_tokens is None:
+        raise DomainError("Восстановление пароля не настроено")
+    user = auth.reset_password(u, c.hasher, _mail(c), c.reset_tokens, body.password, body.token, body.access_token)
+    return _start_session(response, c, user)

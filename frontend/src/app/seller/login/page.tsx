@@ -51,7 +51,7 @@ function SellerLogin() {
           <label className="mt-2 flex cursor-pointer items-center gap-2 text-xs text-muted"><input type="checkbox" className="accent-accent" checked={show} onChange={(e) => setShow(e.target.checked)} />Показать пароль</label>
           {err && <p role="alert" className="mt-4 rounded-card bg-pink px-4 py-3 text-[13px] text-accent">{err}</p>}
           <button className="btn btn-primary mt-6 w-full" disabled={busy}>{busy ? 'Входим…' : 'Войти в магазин'}</button>
-          <p className="mt-5 text-xs text-muted">Нет доступа? Магазин подключает администратор площадки — напишите нам через «Задать вопрос».</p>
+          <p className="mt-5 text-xs text-muted"><Link className="text-accent underline underline-offset-2" href="/reset">Забыли пароль?</Link> Нет доступа? Магазин подключает администратор площадки — напишите нам через «Задать вопрос».</p>
           <Link className="mt-4 inline-flex items-center gap-1.5 text-[13px] text-accent" href="/"><Icon name="back" className="size-4" />Вернуться в магазин</Link>
         </form>
       </main>

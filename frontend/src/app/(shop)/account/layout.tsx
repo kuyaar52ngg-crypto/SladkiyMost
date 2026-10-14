@@ -12,6 +12,7 @@ const ACCOUNT_NAV = [
   ['/account/orders', 'Мои заказы'],
   ['/account/tracking', 'Отслеживание доставки'],
   ['/account/favorites', 'Избранное'],
+  ['/account/reviews', 'Мои отзывы'],
   ['/account/addresses', 'Мои адреса'],
   ['/account/profile', 'Мои данные'],
   ['/account/gifts', 'Подарки и открытки'],

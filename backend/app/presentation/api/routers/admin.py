@@ -5,11 +5,12 @@ from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-from app.application import account, analytics, catalog, orders, uploads, waves
+from app.application import account, analytics, catalog, content, orders, uploads, waves
+from app.application import reviews as R
 from app.application import sellers as Sl
 from app.application import notifications as notify
 from app.application.ports import ProductFilter, UnitOfWork
-from app.domain.entities import OrderStatus, User
+from app.domain.entities import OrderStatus, ReviewStatus, User
 from app.domain.errors import DomainError
 
 from .. import schemas as S
@@ -209,3 +210,81 @@ def telegram_setup(c: Container = Depends(container)):
 def telegram_info(c: Container = Depends(container)):
     c.ensure_bot()
     return S.BotOut(username=c.bot.username() if c.bot else None)
+
+
+# ---------------- категории ----------------
+def _categories(u: UnitOfWork) -> list[S.CategoryOut]:
+    return [S.CategoryOut.of(cat, n) for cat, n in content.categories(u)]
+
+
+@router.get("/categories", response_model=list[S.CategoryOut])
+def category_list(u: UnitOfWork = Depends(uow)):
+    return _categories(u)
+
+
+@router.post("/categories", response_model=list[S.CategoryOut], status_code=201)
+def category_create(body: S.CategoryIn, u: UnitOfWork = Depends(uow)):
+    content.create_category(u, body.name or "")
+    return _categories(u)
+
+
+@router.put("/categories/{category_id}", response_model=list[S.CategoryOut])
+def category_update(category_id: int, body: S.CategoryIn, u: UnitOfWork = Depends(uow)):
+    content.update_category(u, category_id, body.name, body.active)
+    return _categories(u)
+
+
+@router.post("/categories/{category_id}/move", response_model=list[S.CategoryOut])
+def category_move(category_id: int, body: S.MoveIn, u: UnitOfWork = Depends(uow)):
+    content.move_category(u, category_id, body.delta)
+    return _categories(u)
+
+
+@router.delete("/categories/{category_id}", response_model=list[S.CategoryOut])
+def category_delete(category_id: int, u: UnitOfWork = Depends(uow)):
+    content.delete_category(u, category_id)
+    return _categories(u)
+
+
+# ---------------- отзывы ----------------
+def _review_out(u: UnitOfWork, r) -> S.ReviewOut:
+    p = u.products.get(r.product_id)
+    return S.ReviewOut.of(r, p.name if p else r.product_id)
+
+
+@router.get("/reviews", response_model=list[S.ReviewOut])
+def review_list(status: ReviewStatus | None = None, u: UnitOfWork = Depends(uow)):
+    items = R.all_reviews(u, status)
+    names = {p.id: p.name for p in u.products.list(ProductFilter(include_inactive=True))}
+    return [S.ReviewOut.of(r, names.get(r.product_id, r.product_id)) for r in items]
+
+
+@router.post("/reviews/{review_id}", response_model=S.ReviewOut)
+def review_moderate(review_id: int, body: S.ModerateIn, u: UnitOfWork = Depends(uow), c: Container = Depends(container)):
+    before = u.reviews.get(review_id)
+    r = R.moderate(u, review_id, body.status, body.reply)
+    if before and (before.status != r.status or before.reply != r.reply):
+        p = u.products.get(r.product_id)
+        notify.review_moderated(u, c.notifier, r, p.name if p else r.product_id, c.site_url)
+    return _review_out(u, r)
+
+
+# ---------------- тексты сайта и настройки ----------------
+@router.get("/content")
+def get_content(u: UnitOfWork = Depends(uow)):
+    return content.site_content(u)
+
+
+@router.put("/content")
+def put_content(body: S.ContentIn, u: UnitOfWork = Depends(uow)):
+    return content.save_site_content(u, body.model_dump())
+
+
+@router.get("/settings")
+def get_settings(u: UnitOfWork = Depends(uow)):
+    return content.platform_settings(u)
+
+
+@router.put("/settings")
+def put_settings(body: S.SettingsIn, u: UnitOfWork = Depends(uow)):
+    return content.save_platform_settings(u, body.model_dump())

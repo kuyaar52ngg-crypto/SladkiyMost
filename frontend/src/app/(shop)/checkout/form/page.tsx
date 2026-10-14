@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
-import { Layout, Loading, NeedItems, Summary, useCheckoutItems } from '@/features/checkout/common';
+import { Layout, Loading, NeedItems, Summary, useCheckoutItems, useOrderBlock } from '@/features/checkout/common';
 import { lines, other, useShop } from '@/features/shop/store';
 import { get, post } from '@/shared/api/client';
 import type { Address, Order, QuoteResponse } from '@/shared/api/types';
@@ -18,6 +18,7 @@ const CARDS: Record<string, [string, string]> = {
 
 export default function FormPage() {
   const { ready, items, origin } = useCheckoutItems();
+  const block = useOrderBlock(items);
   const { meta, draft, setDraft, profile, setProfile, clearRegion, toast, user } = useShop();
   const router = useRouter();
   const [r, setR] = useState<QuoteResponse | null>(null);
@@ -175,7 +176,8 @@ export default function FormPage() {
                 {q.gift_rub > 0 && <Kv k="Коробка и открытка" v={rub(q.gift_rub)} />}
                 <hr className="divider" /><Total label="Итого к оплате" value={rub(q.total_rub)} />
               </Summary>
-              <button className="btn btn-primary mt-4 w-full" type="submit" disabled={busy}>{busy ? 'Оплачиваем…' : 'Оплатить и оформить'}</button>
+              {block && <p role="alert" className="mt-4 text-[13px] text-accent">{block}</p>}
+              <button className="btn btn-primary mt-4 w-full" type="submit" disabled={busy || !!block}>{busy ? 'Оплачиваем…' : 'Оплатить и оформить'}</button>
               <p className="mt-3 text-xs text-muted">Сбор до {fmtDate(w.cutoff)}, отправка {fmtDate(w.departure)}, получение {fmtRange(w.arrival_from, w.arrival_to)}.</p>
             </div>
           </>}

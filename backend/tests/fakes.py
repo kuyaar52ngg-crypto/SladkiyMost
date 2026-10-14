@@ -121,6 +121,10 @@ class MemUsers:
     def of_shop(self, shop_id):
         return [copy.deepcopy(u) for u in self.data.values() if u.shop_id == shop_id]
 
+    def by_email(self, email):
+        e = email.strip().lower()
+        return [copy.deepcopy(u) for u in self.data.values() if (u.email or "").lower() == e]
+
     def customers(self):
         return [copy.deepcopy(u) for u in self.data.values() if u.role == Role.CUSTOMER]
 
@@ -253,6 +257,77 @@ class MemShopOrders:
         self.data[(so.order_number, so.shop_id)] = copy.deepcopy(so)
 
 
+class MemCategories:
+    def __init__(self):
+        from app.application.content import DEFAULT_CATEGORIES
+        from app.domain.entities import Category
+        self.data, self.seq = {}, itertools.count(1)
+        for i, n in enumerate(DEFAULT_CATEGORIES):
+            self.add(Category(None, n, i))
+
+    def list(self):
+        return sorted((copy.deepcopy(c) for c in self.data.values()), key=lambda c: (c.position, c.id))
+
+    def get(self, cid):
+        return copy.deepcopy(self.data.get(cid))
+
+    def add(self, c):
+        c.id = next(self.seq)
+        self.data[c.id] = copy.deepcopy(c)
+
+    def save(self, c):
+        if c.id is None:
+            return self.add(c)
+        self.data[c.id] = copy.deepcopy(c)
+
+    def delete(self, cid):
+        self.data.pop(cid, None)
+
+
+class MemReviews:
+    def __init__(self):
+        self.data, self.seq = {}, itertools.count(1)
+
+    def add(self, r):
+        r.id = next(self.seq)
+        self.data[r.id] = copy.deepcopy(r)
+
+    def get(self, rid):
+        return copy.deepcopy(self.data.get(rid))
+
+    def save(self, r):
+        self.data[r.id] = copy.deepcopy(r)
+
+    def list(self, *, status=None, product_id=None, user_id=None):
+        return [copy.deepcopy(r) for r in sorted(self.data.values(), key=lambda r: -r.id)
+                if (status is None or r.status == status) and (product_id is None or r.product_id == product_id)
+                and (user_id is None or r.user_id == user_id)]
+
+
+class MemSettings:
+    def __init__(self):
+        self.data = {}
+
+    def get(self, key):
+        return copy.deepcopy(self.data.get(key))
+
+    def put(self, key, value):
+        self.data[key] = copy.deepcopy(value)
+
+
+class FakeMail:
+    enabled = True
+
+    def __init__(self):
+        self.sent = []
+
+    def send_link(self, email, redirect_to):
+        self.sent.append((email, redirect_to))
+
+    def email_of(self, access_token):
+        return access_token.removeprefix("token-for:") if access_token.startswith("token-for:") else None
+
+
 class MemUow:
     def __init__(self):
         self.products = MemProducts()
@@ -264,6 +339,9 @@ class MemUow:
         self.tickets = MemTickets()
         self.shops = MemShops()
         self.shop_orders = MemShopOrders()
+        self.categories = MemCategories()
+        self.reviews = MemReviews()
+        self.settings = MemSettings()
         self.commits = 0
 
     def __enter__(self):

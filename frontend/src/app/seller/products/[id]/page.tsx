@@ -64,7 +64,7 @@ export default function SellerProduct() {
               <label className="field"><span className="label">Название *</span><input className="input" value={d.name} onChange={(e) => f('name', e.target.value)} /></label>
               <label className="field"><span className="label">Описание</span><textarea className="input min-h-24" value={d.description} onChange={(e) => f('description', e.target.value)} placeholder="Вкус, повод, чем особенный" /></label>
               <div className="grid gap-4 sm:grid-cols-2">
-                <label className="field"><span className="label">Категория *</span><select className="select" value={d.category} onChange={(e) => f('category', e.target.value)}>{meta.categories.map((c) => <option key={c}>{c}</option>)}</select></label>
+                <label className="field"><span className="label">Категория *</span><select className="select" value={d.category} onChange={(e) => f('category', e.target.value)}>{[...meta.categories, ...(meta.categories.includes(d.category) ? [] : [d.category])].map((c) => <option key={c}>{c}</option>)}</select></label>
                 <label className="field"><span className="label">Регион производства</span><input className="input bg-soft" readOnly value={meta.regions[shop.region].name} /></label>
               </div>
               <label className="field"><span className="label">Производитель</span><input className="input" placeholder={shop.name} value={d.manufacturer} onChange={(e) => f('manufacturer', e.target.value)} /></label>

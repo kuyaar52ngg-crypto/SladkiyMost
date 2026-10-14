@@ -7,9 +7,12 @@ from sqlalchemy.pool import NullPool
 
 from .repositories import (
     SqlAddressRepository,
+    SqlCategoryRepository,
     SqlNotificationRepository,
     SqlOrderRepository,
     SqlProductRepository,
+    SqlReviewRepository,
+    SqlSettingsRepository,
     SqlShopOrderRepository,
     SqlShopRepository,
     SqlTicketRepository,
@@ -43,6 +46,9 @@ class SqlUnitOfWork:
         self.tickets = SqlTicketRepository(self.session)
         self.shops = SqlShopRepository(self.session)
         self.shop_orders = SqlShopOrderRepository(self.session)
+        self.categories = SqlCategoryRepository(self.session)
+        self.reviews = SqlReviewRepository(self.session)
+        self.settings = SqlSettingsRepository(self.session)
         return self
 
     def __exit__(self, *exc) -> None:

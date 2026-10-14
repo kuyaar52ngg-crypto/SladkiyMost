@@ -6,7 +6,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import FileResponse
 
-from app.application import catalog, orders, waves
+from app.application import catalog, content, orders, reviews, waves
 from app.application import notifications as notify
 from app.application.ports import ProductFilter, UnitOfWork
 from app.domain import logistics as L
@@ -30,15 +30,18 @@ router = APIRouter(prefix="/api", tags=["shop"])
 
 
 @router.get("/meta")
-def meta(d: date = Depends(today)):
+def meta(d: date = Depends(today), u: UnitOfWork = Depends(uow)):
     p = L.DEFAULT_POLICY
+    rules = content.platform_settings(u)
     return {
         "today": d,
         "policy": {k: v for k, v in p.__dict__.items() if k != "anchors"},
         "regions": {r.value: REGION_INFO[r] for r in Region},
         "directions": {x.value: {"id": x.value, "from": x.origin.value, "to": x.destination.value, "title": x.title} for x in Direction},
         "pickup_points": {r.value: pts for r, pts in PICKUP_POINTS.items()},
-        "categories": catalog.CATEGORIES,
+        "categories": content.category_names(u),
+        "content": content.site_content(u),
+        "rules": {k: rules[k] for k in ("orders_open", "orders_closed_message", "min_order_rub")},
         "order_statuses": [{"id": s.value, "title": ORDER_STATUS_TITLES[s]} for s in ORDER_FLOW],
         "wave_statuses": {s.value: t for s, t in WAVE_STATUS_TITLES.items()},
     }
@@ -56,6 +59,12 @@ def products(region: str = "", category: str = "", q: str = "", min_price: int |
 @router.get("/products/{product_id}", response_model=S.ProductOut)
 def product(product_id: str, u: UnitOfWork = Depends(uow)):
     return S.ProductOut.of(catalog.get_product(u, product_id))
+
+
+@router.get("/products/{product_id}/reviews", response_model=S.ProductReviewsOut)
+def product_reviews(product_id: str, u: UnitOfWork = Depends(uow)):
+    r = reviews.product_reviews(u, product_id)
+    return S.ProductReviewsOut(rating=r.rating, count=r.count, items=[S.ReviewOut.of(x) for x in r.reviews])
 
 
 @router.get("/waves", response_model=list[S.WaveOut])

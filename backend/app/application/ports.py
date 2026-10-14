@@ -10,11 +10,14 @@ from typing import Protocol, Sequence
 
 from app.domain.entities import (
     Address,
+    Category,
     Direction,
     Notification,
     Order,
     OrderStatus,
     Product,
+    Review,
+    ReviewStatus,
     Shop,
     ShopOrder,
     Ticket,
@@ -73,6 +76,9 @@ class UserRepository(Protocol):
         ...
     def admins(self) -> list[User]: ...
     def customers(self) -> list[User]: ...
+    def by_email(self, email: str) -> list[User]:
+        """Аккаунты с этой почтой (без учёта регистра)."""
+        ...
     def of_shop(self, shop_id: int) -> list[User]: ...
     def add(self, user: User) -> None:
         """Сохраняет нового пользователя и проставляет ему id."""
@@ -119,6 +125,49 @@ class ShopOrderRepository(Protocol):
     def save(self, s: ShopOrder) -> None: ...
 
 
+class CategoryRepository(Protocol):
+    def list(self) -> list[Category]:
+        """Все категории по порядку (включая скрытые)."""
+        ...
+    def get(self, category_id: int) -> Category | None: ...
+    def add(self, c: Category) -> None: ...
+    def save(self, c: Category) -> None: ...
+    def delete(self, category_id: int) -> None: ...
+
+
+class ReviewRepository(Protocol):
+    def add(self, r: Review) -> None: ...
+    def get(self, review_id: int) -> Review | None: ...
+    def save(self, r: Review) -> None: ...
+    def list(self, *, status: ReviewStatus | None = None, product_id: str | None = None,
+             user_id: int | None = None) -> list[Review]:
+        """Новые сначала."""
+        ...
+
+
+class SettingsRepository(Protocol):
+    """Настройки площадки и тексты сайта: JSON-документ по ключу."""
+    def get(self, key: str) -> dict | None: ...
+    def put(self, key: str, value: dict) -> None: ...
+
+
+class EmailLinks(Protocol):
+    """Письмо со ссылкой для входа (Supabase Auth) и проверка токена из этой ссылки."""
+    enabled: bool
+    def send_link(self, email: str, redirect_to: str) -> None: ...
+    def email_of(self, access_token: str) -> str | None:
+        """Подтверждённая почта владельца токена или None, если токен недействителен."""
+        ...
+
+
+class ResetTokens(Protocol):
+    """Подписанная ссылка сброса пароля (для отправки в Telegram); недействительна после смены пароля."""
+    def issue(self, user_id: int, password_hash: str) -> str: ...
+    def read(self, token: str) -> tuple[int, str] | None:
+        """(user_id, отпечаток пароля) или None."""
+        ...
+
+
 class UnitOfWork(Protocol):
     products: ProductRepository
     waves: WaveRepository
@@ -129,6 +178,9 @@ class UnitOfWork(Protocol):
     tickets: TicketRepository
     shops: ShopRepository
     shop_orders: ShopOrderRepository
+    categories: CategoryRepository
+    reviews: ReviewRepository
+    settings: SettingsRepository
 
     def __enter__(self) -> "UnitOfWork": ...
     def __exit__(self, *exc) -> None: ...

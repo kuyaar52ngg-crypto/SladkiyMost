@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Layout, Loading, NeedItems, Summary, useCheckoutItems } from '@/features/checkout/common';
+import { Layout, Loading, NeedItems, OrderBlock, Summary, useCheckoutItems, useOrderBlock } from '@/features/checkout/common';
 import { lines, other, useShop } from '@/features/shop/store';
 import { post } from '@/shared/api/client';
 import type { Offer } from '@/shared/api/types';
@@ -14,6 +14,7 @@ export default function WavePage() {
   const { meta, draft, setDraft, toast } = useShop();
   const router = useRouter();
   const [offers, setOffers] = useState<Offer[] | null>(null);
+  const block = useOrderBlock(items);
   const key = JSON.stringify(lines(items));
 
   useEffect(() => {
@@ -35,6 +36,7 @@ export default function WavePage() {
       <Crumbs items={[['Главная', '/'], ['Корзина', '/cart'], ['Выбор сборной отправки']]} />
       <PageHead title="Выбор сборной отправки" text="Найдём попутную волну для ваших сладостей." />
       <Steps current={2} />
+      <OrderBlock text={block} />
       <Layout
         main={<>
           <div className="card"><h3 className="h3 mb-4">Куда отправляем?</h3>
@@ -77,7 +79,7 @@ export default function WavePage() {
         aside={<div className="card-soft"><h3 className="h3 mb-4">Ваш заказ</h3>
           <Summary items={items}>{selected?.quote && <><Kv k="Доставка, предварительно" v={rub(selected.quote.delivery_rub)} /><hr className="divider" /><Total label="Предварительный итог" value={rub(selected.quote.goods_rub + selected.quote.delivery_rub)} /></>}</Summary>
           {!selected && <Note className="mt-3">Нет открытых волн — загляните позже.</Note>}
-          <button className="btn btn-primary mt-4 w-full" disabled={!selected} onClick={() => { setDraft({ wave_id: selected!.wave.id }); router.push('/checkout/calc'); }}>Рассчитать доставку</button>
+          <button className="btn btn-primary mt-4 w-full" disabled={!selected || !!block} onClick={() => { setDraft({ wave_id: selected!.wave.id }); router.push('/checkout/calc'); }}>Рассчитать доставку</button>
           <p className="mt-3 text-xs text-muted">Предварительный расчёт. Деньги сейчас не списываются.</p></div>}
       />
     </div>

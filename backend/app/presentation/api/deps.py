@@ -8,7 +8,7 @@ from typing import Any, Callable, Iterator, Protocol
 
 from fastapi import Depends, Request
 
-from app.application import auth
+from app.application import auth, content
 from app.application import notifications as notify
 from app.application import waves as wave_cases
 from app.application.ports import Clock, ImageStorage, Notifier, PasswordHasher, UnitOfWork
@@ -42,6 +42,8 @@ class Container:
     admin_password: str = ""
     webhook_secret: str = ""
     cookie_secure: bool = True
+    mail: Any = None                    # EmailLinks: письма Supabase Auth для сброса пароля
+    reset_tokens: Any = None            # ResetTokens: ссылки сброса пароля в Telegram
     _synced: date | None = None
     _admin_checked: bool = field(default=False)
 
@@ -70,6 +72,10 @@ def uow(c: Container = Depends(container), d: date = Depends(today)) -> Iterator
                 auth.ensure_admin(u, c.hasher, c.admin_phone, c.admin_password)
             except Exception:
                 log.exception("Не удалось создать администратора")
+                u.rollback()
+            try:  # справочник категорий при первом запуске
+                content.ensure_categories(u)
+            except Exception:
                 u.rollback()
             c._admin_checked = True
         if c._synced != d:  # расписание волн и авто-закрытие приёма — раз в день

@@ -58,7 +58,25 @@ export interface Meta {
   categories: string[];
   order_statuses: { id: OrderStatus; title: string }[];
   wave_statuses: Record<WaveStatus, string>;
+  content: SiteContent;
+  rules: { orders_open: boolean; orders_closed_message: string; min_order_rub: number };
 }
+
+export interface SiteContent {
+  banner: { enabled: boolean; text: string; link: string };
+  hero: { overline: string; title: string; subtitle: string; note: string };
+  contacts: { phone: string; email: string; telegram: string; hours: string };
+  footer: { tagline: string };
+}
+export interface PlatformSettings { orders_open: boolean; orders_closed_message: string; min_order_rub: number; reviews_premoderation: boolean }
+export interface Category { id: number; name: string; position: number; active: boolean; products: number }
+export type ReviewStatus = 'pending' | 'published' | 'rejected';
+export interface Review {
+  id: number; product_id: string; product_name: string; order_code: string; author: string; rating: number; text: string;
+  status: ReviewStatus; status_title: string; reply: string; created_at: string | null;
+}
+export interface ProductReviews { rating: number; count: number; items: Review[] }
+export interface Reviewable { product_id: string; name: string; photo: string; order_code: string }
 
 export interface Stats {
   orders: number; revenue: number; avg_check: number; gifts: number; commission: number;

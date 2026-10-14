@@ -19,7 +19,8 @@ def app():
     from app.presentation.api.app import create_app
     from app.presentation.api.deps import Container
     from tests.catalog_data import PRODUCTS
-    from tests.fakes import FakeNotifier, FakeStorage
+    from app.infrastructure.security import ResetLinkTokens
+    from tests.fakes import FakeMail, FakeNotifier, FakeStorage
 
     try:
         engine = create_engine(URL)
@@ -38,6 +39,7 @@ def app():
         uow_factory=lambda: SqlUnitOfWork(sessions), clock=SystemClock(date(2026, 10, 14)), hasher=Argon2Hasher(),
         sessions=SessionTokens("test-secret-of-sufficient-length-32b"), storage=FakeStorage(), notifier=FakeNotifier(),
         admin_phone=ADMIN["phone"], admin_password=ADMIN["password"], webhook_secret="hook", cookie_secure=False,
+        mail=FakeMail(), reset_tokens=ResetLinkTokens("test-secret-of-sufficient-length-32b"),
     ))
 
 
@@ -213,3 +215,36 @@ def test_seller_api(app):
     assert r.json()["prep_title"] == "Подтверждён"
     assert admin.get(f"/api/admin/orders/{code}/shops").json()[0]["prep_status"] == "confirmed"
     assert len(seller.get("/api/seller/waves").json()) == 1
+
+
+def test_admin_directories_and_password_reset(app):
+    admin, guest = client(app), client(app)
+    admin.post("/api/auth/login", json=ADMIN)
+    assert guest.get("/api/admin/categories").status_code == 401
+    cats = admin.post("/api/admin/categories", json={"name": "Чак-чак"}).json()
+    new = next(c for c in cats if c["name"] == "Чак-чак")
+    assert "Чак-чак" in guest.get("/api/meta").json()["categories"]
+    admin.put(f"/api/admin/categories/{new['id']}", json={"active": False})
+    assert "Чак-чак" not in guest.get("/api/meta").json()["categories"]
+    assert admin.post(f"/api/admin/categories/{new['id']}/move", json={"delta": -10}).json()[0]["id"] == new["id"]
+    assert all(c["id"] != new["id"] for c in admin.delete(f"/api/admin/categories/{new['id']}").json())
+    busy = next(c for c in admin.get("/api/admin/categories").json() if c["products"])
+    assert admin.delete(f"/api/admin/categories/{busy['id']}").status_code == 409
+
+    content = admin.get("/api/admin/content").json()
+    content["banner"] = {"enabled": True, "text": "Новая волна уже открыта", "link": "/catalog"}
+    assert admin.put("/api/admin/content", json=content).status_code == 200
+    assert guest.get("/api/meta").json()["content"]["banner"]["text"] == "Новая волна уже открыта"
+    settings = admin.get("/api/admin/settings").json()
+    admin.put("/api/admin/settings", json={**settings, "orders_open": False})
+    assert guest.get("/api/meta").json()["rules"]["orders_open"] is False
+    admin.put("/api/admin/settings", json={**settings, "orders_open": True})
+    assert admin.get("/api/admin/reviews").json() == [] and guest.get("/api/products/YKT-001/reviews").json()["count"] == 0
+
+    guest.post("/api/auth/register", json={"phone": "+7 (914) 505-16-17", "name": "Вера", "password": "secret123",
+                                           "email": "reset-me@example.ru"})
+    assert guest.post("/api/auth/reset/request", json={"login": "reset-me@example.ru"}).json()["ok"]
+    r = guest.post("/api/auth/reset/confirm", json={"password": "new-pass-123", "access_token": "token-for:reset-me@example.ru"})
+    assert r.status_code == 200 and r.json()["name"] == "Вера"
+    assert client(app).post("/api/auth/login", json={"phone": "+7 (914) 505-16-17", "password": "new-pass-123"}).status_code == 200
+    assert guest.post("/api/auth/reset/confirm", json={"password": "new-pass-123", "token": "bad"}).status_code == 401

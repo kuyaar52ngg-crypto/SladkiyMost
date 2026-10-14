@@ -11,10 +11,12 @@ from app.domain import logistics as L
 from app.domain.entities import (
     ORDER_STATUS_TITLES,
     PREP_TITLES,
+    REVIEW_STATUS_TITLES,
     SHOP_STATUS_TITLES,
     TICKET_STATUS_TITLES,
     WAVE_STATUS_TITLES,
     Address,
+    Category,
     Notification,
     Order,
     OrderStatus,
@@ -22,6 +24,8 @@ from app.domain.entities import (
     ReceiveMethod,
     PrepStatus,
     Region,
+    Review,
+    ReviewStatus,
     Shop,
     ShopStatus,
     Ticket,
@@ -593,3 +597,120 @@ class ShopOrderOut(BaseModel):
     prep_status: PrepStatus
     prep_title: str
     prep_history: list[PrepEventOut]
+
+
+# ---------------- восстановление пароля ----------------
+class ResetRequestIn(BaseModel):
+    login: str = Field(max_length=160)
+
+
+class ResetConfirmIn(BaseModel):
+    password: str = Field(max_length=128)
+    token: str = Field("", max_length=1000)
+    access_token: str = Field("", max_length=4000)
+
+
+# ---------------- категории ----------------
+class CategoryIn(BaseModel):
+    name: str | None = Field(None, max_length=120)
+    active: bool | None = None
+
+
+class MoveIn(BaseModel):
+    delta: int = Field(ge=-50, le=50)
+
+
+class CategoryOut(BaseModel):
+    id: int
+    name: str
+    position: int
+    active: bool
+    products: int = 0
+
+    @classmethod
+    def of(cls, c: Category, products: int = 0) -> "CategoryOut":
+        return cls(id=c.id, name=c.name, position=c.position, active=c.active, products=products)
+
+
+# ---------------- отзывы ----------------
+class RatingIn(BaseModel):
+    product_id: str = Field(max_length=16)
+    rating: int
+    text: str = Field("", max_length=3000)
+
+
+class ModerateIn(BaseModel):
+    status: ReviewStatus | None = None
+    reply: str | None = Field(None, max_length=3000)
+
+
+class ReviewOut(BaseModel):
+    id: int
+    product_id: str
+    product_name: str = ""
+    order_code: str
+    author: str
+    rating: int
+    text: str
+    status: ReviewStatus
+    status_title: str
+    reply: str
+    created_at: datetime | None
+
+    @classmethod
+    def of(cls, r: Review, product_name: str = "") -> "ReviewOut":
+        return cls(id=r.id, product_id=r.product_id, product_name=product_name, order_code=f"СМ-{r.order_number}",
+                   author=r.author, rating=r.rating, text=r.text, status=r.status,
+                   status_title=REVIEW_STATUS_TITLES[r.status], reply=r.reply, created_at=r.created_at)
+
+
+class ProductReviewsOut(BaseModel):
+    rating: float
+    count: int
+    items: list[ReviewOut]
+
+
+class ReviewableOut(BaseModel):
+    product_id: str
+    name: str
+    photo: str
+    order_code: str
+
+
+# ---------------- тексты сайта и настройки ----------------
+class BannerIn(BaseModel):
+    enabled: bool = False
+    text: str = Field("", max_length=400)
+    link: str = Field("", max_length=400)
+
+
+class HeroIn(BaseModel):
+    overline: str = Field("", max_length=200)
+    title: str = Field("", max_length=200)
+    subtitle: str = Field("", max_length=600)
+    note: str = Field("", max_length=300)
+
+
+class ContactsIn(BaseModel):
+    phone: str = Field("", max_length=80)
+    email: str = Field("", max_length=200)
+    telegram: str = Field("", max_length=200)
+    hours: str = Field("", max_length=200)
+
+
+class FooterIn(BaseModel):
+    tagline: str = Field("", max_length=300)
+
+
+class ContentIn(BaseModel):
+    banner: BannerIn
+    hero: HeroIn
+    contacts: ContactsIn
+    footer: FooterIn
+
+
+class SettingsIn(BaseModel):
+    orders_open: bool
+    orders_closed_message: str = Field("", max_length=600)
+    min_order_rub: int = Field(0, ge=0, le=1_000_000)
+    reviews_premoderation: bool = True
